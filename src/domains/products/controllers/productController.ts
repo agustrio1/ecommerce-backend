@@ -1,0 +1,179 @@
+import { Request, Response } from "express";
+import { ProductService } from "../services/productService";
+import { ProductType } from "../types/productType";
+import { upload } from "../../../config/media";
+import slugify from "slugify";
+
+export class ProductController {
+  private productService: ProductService;
+
+  constructor() {
+    this.productService = new ProductService();
+  }
+
+  /**
+   * Mendapatkan semua produk
+   */
+  public getAllProducts = async (req: Request, res: Response) => {
+    try {
+      const products = await this.productService.getAllProducts();
+      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+
+      const transformedProducts = products.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        description: product.description,
+        stock: product.stock,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        images: product.images.map((img: any) => ({
+          id: img.id,
+          productId: img.productId,
+          image: baseUrl + img.image,
+          isPrimary: img.isPrimary,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt,
+        })),
+        category: product.category.name,
+      }));
+
+      res.status(200).json(transformedProducts);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal mengambil produk" });
+    }
+  };
+
+  /**
+   * Mendapatkan satu produk berdasarkan ID
+   * @param id
+   */
+  public getProductById = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const product = await this.productService.getProductById(id);
+      if (!product) {
+        return res.status(404).json({ error: "Produk tidak ditemukan" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+
+      const transformedProduct = {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        description: product.description,
+        stock: product.stock,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        images: product.images.map((img: any) => ({
+          id: img.id,
+          productId: img.productId,
+          image: baseUrl + img.image,
+          isPrimary: img.isPrimary,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt,
+        })),
+        category: product.category.name,
+      };
+
+      res.status(200).json(transformedProduct);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal mengambil produk" });
+    }
+  };
+
+  /**
+   * Membuat produk baru
+   */
+  public createProduct = [
+    upload.array("images", 5),
+    async (req: Request, res: Response) => {
+      try {
+        const { name, description, price, stock, categoryId } = req.body;
+        const files = req.files as Express.Multer.File[];
+
+        if (!files || files.length === 0) {
+          return res
+            .status(400)
+            .json({ error: "Minimal satu gambar diperlukan" });
+        }
+
+        const productData: ProductType = {
+          name,
+          slug: slugify(name, { lower: true }),
+          description,
+          price: parseFloat(price),
+          stock: parseInt(stock),
+          categoryId,
+          images: files.map((file) => file.filename),
+        };
+
+        const product = await this.productService.createProduct(
+          productData,
+          files
+        );
+        res.status(201).json(product);
+      } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: "Gagal membuat produk" });
+      }
+    },
+  ];
+
+  /**
+   * Memperbarui produk
+   */
+  public updateProduct = [
+    upload.array("images", 5),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const { name, description, price, stock, categoryId } = req.body;
+        const files = req.files as Express.Multer.File[];
+
+        const productData: Partial<ProductType> = {
+          name,
+          description,
+          price: price ? parseFloat(price) : undefined,
+          stock: stock ? parseInt(stock) : undefined,
+          categoryId,
+        };
+
+        const product = await this.productService.updateProduct(
+          id,
+          productData,
+          files
+        );
+        res.status(200).json(product);
+      } catch (error: any) {
+        console.error(error);
+        if (error.message === "Product not found") {
+          return res.status(404).json({ error: error.message });
+        }
+        res.status(500).json({ error: "Gagal memperbarui produk" });
+      }
+    },
+  ];
+
+  /**
+   * Menghapus produk
+   */
+  public deleteProduct = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const product = await this.productService.deleteProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Produk tidak ditemukan" });
+      }
+      res.status(200).json(product);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal menghapus produk" });
+    }
+  };
+}

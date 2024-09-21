@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  carts     Cart[]
+  orders    Order[]
+  addresses Address[]
+  wishlist WishlistItem[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  price       Float
+  images      ProductImage[] 
+  description String
+  stock       Int
+  categoryId  String
+  category    Category       @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  carts       Cart[]
+  orderItems  OrderItem[]
+  tags        Tag[]          @relation("ProductTags")
+  wishlist    WishlistItem[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  image     String
+  isPrimary Boolean  @default(false)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("product_images")
+}
+
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("carts")
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  addressId  String
+  total      Float
+  status     PaymentStatus      @default(PENDING)
+  user       User        @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  address    Address     @relation("OrderShippingAddress", fields: [addressId], references: [id])
+  shipment   Shipment[]
+  discounts  Discount[]
+
+  @@map("orders")
+}
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("order_items")
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  address1   String
+  address2   String?
+  city       String
+  state      String
+  postalCode String
+  country    String
+  phone      String
+  type       AddressType @default(SHIPPING)
+  user       User     @relation(fields: [userId], references: [id])
+  orders     Order[]  @relation("OrderShippingAddress")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("addresses")
+}
+
+model Shipment {
+  id              String          @id @default(cuid())
+  orderId         String
+  originCity      String          // ID atau nama kota asal
+  destinationCity String          // ID atau nama kota tujuan
+  weight          Float           // Berat dalam kilogram
+  courier         String          // Kurir yang dipilih (ex: "jne", "tiki", "pos")
+  service         String          // Jenis layanan (ex: "REG", "YES", "OKE")
+  cost            Float           // Biaya pengiriman
+  etd             String          // Estimasi waktu pengiriman (ex: "2-3 hari")
+  trackingNumber  String?
+  status          ShipmentStatus  @default(PENDING)
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  order           Order           @relation(fields: [orderId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  shipmentHistory ShipmentHistory[]
+
+  @@map("shipments")
+}
+
+model Discount {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  description String?
+  discountType DiscountType
+  value       Float
+  minPurchase Float?
+  maxDiscount Float?
+  expiresAt   DateTime?
+  usageCount  Int           @default(0)
+  maxUsage    Int?
+  orders      Order[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("discounts")
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[] @relation("ProductTags")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("tags")
+}
+
+model ShipmentHistory {
+  id          String          @id @default(cuid())
+  shipmentId  String
+  status      ShipmentStatus
+  updatedAt   DateTime        @default(now())
+  shipment    Shipment         @relation(fields: [shipmentId], references: [id])
+
+  @@map("shipment_histories")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  CANCELED
+}
+
+
+enum ShipmentStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
