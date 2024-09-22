@@ -79,6 +79,7 @@ model Cart {
   updatedAt DateTime @updatedAt
 
   @@map("carts")
+   @@unique([userId, productId])
 }
 
 model Order {
@@ -97,6 +98,7 @@ model Order {
   discounts  Discount[]
 
   @@map("orders")
+  @@unique([userId, addressId])
 }
 model OrderItem {
   id        String   @id @default(cuid())
@@ -110,6 +112,7 @@ model OrderItem {
   updatedAt DateTime @updatedAt
 
   @@map("order_items")
+  @@unique([orderId, productId])
 }
 
 model Address {

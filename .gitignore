@@ -1,7 +1,14 @@
-node_modules
-# Keep environment variables out of version control
+# Dependency directories
+node_modules/
+
+# Environment variables
 .env
 
-/prisma/migrations
+# Prisma migrations
+/prisma/migrations/
 
-/dist
+# Build output
+/dist/
+
+# Public images
+/public/images/

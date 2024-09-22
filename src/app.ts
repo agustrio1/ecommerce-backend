@@ -6,6 +6,9 @@ import { authRouter } from "./domains/auth/routes/authRouter";
 import { userRoute } from "./domains/users/routes/userRouter";
 import { categoryRouter } from "./domains/categories/routes/categoryRouter";
 import { productRouter } from "./domains/products/routes/productRouter";
+import { CartRouter } from "./domains/carts/routes/cartRouter";
+
+import errorHandler from "./middlewares/errorHandler";
 
 const app = express();
 
@@ -30,5 +33,8 @@ app.use("/auth", authRouter);
 app.use("/api/users", userRoute);
 app.use("/api/categories", categoryRouter)
 app.use("/api/products", productRouter)
+app.use("/api/carts", CartRouter)
+
+app.use(errorHandler);
 
 export default app;
