@@ -12,3 +12,5 @@ node_modules/
 
 # Public images
 /public/images/
+
+.commitlintrc.js
