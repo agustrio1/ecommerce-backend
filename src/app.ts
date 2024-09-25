@@ -10,6 +10,7 @@ import { CartRouter } from "./domains/carts/routes/cartRouter";
 import { AddressRouter } from "./domains/address/routes/addressRouter";
 import { DiscountRouter } from "./domains/discounts/router/discountRouter";
 import { wishlistRouter } from "./domains/wishlists/route/wishlistRouter";
+import { OrderRouter } from "./domains/orders/router/orderRouter";
 
 import errorHandler from "./middlewares/errorHandler";
 
@@ -40,6 +41,7 @@ app.use("/api/carts", CartRouter)
 app.use("/api/addresses", AddressRouter)
 app.use("/api/discounts", DiscountRouter)
 app.use("/api/wishlists", wishlistRouter)
+app.use("/api/orders", OrderRouter)
 
 app.use(errorHandler);
 
