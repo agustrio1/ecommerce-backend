@@ -18,3 +18,6 @@ export const EMAIL_HOST = process.env.EMAIL_HOST;
 export const EMAIL_PORT = process.env.EMAIL_PORT;
 export const EMAIL_USER = process.env.EMAIL_USER;
 export const EMAIL_PASS = process.env.EMAIL_PASS;
+export const SHIPPINGS_TOKEN= process.env.SHIPPINGS_TOKEN;
+export const RAJAONGKIR_BASE_URL= process.env.RAJAONGKIR_BASE_URL;
+export const RAJAONGKIR_BASE_CITY_URL= process.env.RAJAONGKIR_BASE_CITY_URL;
