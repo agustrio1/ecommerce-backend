@@ -3,6 +3,7 @@ import { ProductService } from "../services/productService";
 import { ProductType } from "../types/productType";
 import { upload } from "../../../config/media";
 import slugify from "slugify";
+import { parentPort } from "worker_threads";
 
 export class ProductController {
   private productService: ProductService;
@@ -25,6 +26,7 @@ export class ProductController {
         slug: product.slug,
         price: product.price,
         description: product.description,
+        weight: product.weight,
         stock: product.stock,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
@@ -66,6 +68,7 @@ export class ProductController {
         slug: product.slug,
         price: product.price,
         description: product.description,
+        weigth: product.weight,
         stock: product.stock,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
@@ -94,13 +97,11 @@ export class ProductController {
     upload.array("images", 5),
     async (req: Request, res: Response) => {
       try {
-        const { name, description, price, stock, categoryId } = req.body;
+        const { name, description, weight, price, stock, categoryId } = req.body;
         const files = req.files as Express.Multer.File[];
 
         if (!files || files.length === 0) {
-          return res
-            .status(400)
-            .json({ error: "Minimal satu gambar diperlukan" });
+          return res.status(400).json({ error: "Minimal satu gambar diperlukan" });
         }
 
         const productData: ProductType = {
@@ -108,10 +109,10 @@ export class ProductController {
           slug: slugify(name, { lower: true }),
           description,
           price: parseFloat(price),
+          weight: parseFloat(weight),
           stock: parseInt(stock),
           categoryId,
-          images: files.map((file) => file.filename),
-        };
+        } as any;
 
         const product = await this.productService.createProduct(
           productData,
@@ -119,8 +120,8 @@ export class ProductController {
         );
         res.status(201).json(product);
       } catch (error: any) {
-        console.error(error);
-        res.status(500).json({ error: "Gagal membuat produk" });
+        console.error("Error in createProduct controller: ", error.message);
+        res.status(500).json({ error: error.message || "Gagal membuat produk" });
       }
     },
   ];

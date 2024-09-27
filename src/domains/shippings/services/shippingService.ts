@@ -57,16 +57,23 @@ export class ShippingService {
 
   async createShipment(shipmentData: CreateShipmentDTO): Promise<Shipment> {
     try {
-      const { orderId, weight, courier, service } = shipmentData;
+      const { orderId, courier, service } = shipmentData;
 
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { address: true },
+        include: { address: true, orderItems: { include: { product: true } } },
       });
 
       if (!order || !order.address) {
         throw new Error("Order atau alamat tidak ditemukan.");
       }
+
+      // Ambil berat produk dari orderItems
+      const totalWeight = order.orderItems.reduce((sum, item) => {
+        return sum + item.product.weight * item.quantity;
+      }, 0);      
+
+      const totalWeightInGrams = Math.round(totalWeight * 1000);
 
       const originCity = this.KEDIRI_ID;
       const destinationCityName = order.address.city;
@@ -86,7 +93,7 @@ export class ShippingService {
         {
           origin: originCity,
           destination: destinationCityId,
-          weight: Math.round(weight * 1000),
+          weight: totalWeightInGrams,
           courier: courier,
         },
         {
@@ -112,12 +119,12 @@ export class ShippingService {
             orderId: orderId,
             originCity,
             destinationCity: destinationCityId,
-            weight: weight,
+            weight: totalWeightInGrams,
             courier: courier,
             service: selectedService.service,
             cost: value,
             etd: etd,
-          },
+          } as any,
         });
 
         return createdShipment;
@@ -163,6 +170,7 @@ export class ShippingService {
                   email: true,
                 },
               },
+              address: true,
             },
           },
           shipmentHistory: true,
@@ -173,7 +181,7 @@ export class ShippingService {
         ...shipment,
         originCity: this.KEDIRI_NAME,
         destinationCity:
-          this.cityCache[shipment.destinationCity] || shipment.destinationCity,
+          shipment.order?.address?.city || shipment.destinationCity,
       }));
     } catch (error: any) {
       console.error("Error fetching all shipments:", error.message);
@@ -186,7 +194,11 @@ export class ShippingService {
       const shipment = await prisma.shipment.findUnique({
         where: { id },
         include: {
-          order: true,
+          order: {
+            include: {
+              address: true,
+            },
+          },
           shipmentHistory: true,
         },
       });
@@ -199,7 +211,7 @@ export class ShippingService {
         ...shipment,
         originCity: this.KEDIRI_NAME,
         destinationCity:
-          this.cityCache[shipment.destinationCity] || shipment.destinationCity,
+          shipment.order?.address?.city || shipment.destinationCity,
       };
     } catch (error: any) {
       console.error("Error fetching shipment by ID:", error.message);

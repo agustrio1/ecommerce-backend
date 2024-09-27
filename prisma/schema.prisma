@@ -42,6 +42,7 @@ model Product {
   price       Float
   images      ProductImage[] 
   description String
+  weight      Float
   stock       Int
   categoryId  String
   category    Category       @relation(fields: [categoryId], references: [id])
@@ -140,8 +141,8 @@ model Shipment {
   originCity      String          // ID atau nama kota asal
   destinationCity String          // ID atau nama kota tujuan
   weight          Float           // Berat dalam kilogram
-  courier         String          // Kurir yang dipilih (ex: "jne", "tiki", "pos")
-  service         String          // Jenis layanan (ex: "REG", "YES", "OKE")
+  courier         Courier          // Kurir yang dipilih (ex: "jne", "tiki", "pos")
+  service         Service          // Jenis layanan (ex: "REG", "YES", "OKE")
   cost            Float           // Biaya pengiriman
   etd             String          // Estimasi waktu pengiriman (ex: "2-3 hari")
   trackingNumber  String?
@@ -237,4 +238,17 @@ enum Role {
 enum DiscountType {
   FIXED
   PERCENTAGE
+}
+
+enum Courier {
+  jne
+  tiki
+  pos
+}
+
+enum Service {
+  REG
+  CTC
+  YES
+  OKE
 }

@@ -3,6 +3,7 @@ import { ProductType } from "../types/productType";
 import path from "path";
 import fs from "fs";
 import slugify from "slugify";
+import { Prisma } from "@prisma/client";
 
 export class ProductService {
   /**
@@ -17,20 +18,23 @@ export class ProductService {
   ): Promise<any> {
     try {
       const slug = slugify(productData.name, { lower: true });
+  
       return await prisma.$transaction(async (prisma) => {
-        // Membuat produk
         const product = await prisma.product.create({
           data: {
             name: productData.name,
             slug: slug,
             description: productData.description,
             price: productData.price,
+            weight: productData.weight, // Pastikan ini ada di `productData`
             stock: productData.stock,
-            categoryId: productData.categoryId,
+            category: {
+              connect: { id: productData.categoryId },
+            },
             images: {
               create: images.map((file, index) => ({
                 image: file.filename,
-                isPrimary: index === 0 ? true : false,
+                isPrimary: index === 0,
               })),
             },
           },
@@ -39,14 +43,15 @@ export class ProductService {
             category: true,
           },
         });
-
-        return product;
+  
+        return product; 
       });
     } catch (error: any) {
-      throw new Error(error.message);
+      console.error("Error creating product: ", error.message);
+      throw new Error("Gagal membuat produk: " + error.message);
     }
   }
-
+  
   /**
    * Mengambil semua produk beserta gambar-gambarnya
    * @returns Array produk
@@ -161,6 +166,7 @@ export class ProductService {
           data: {
             name: productData.name,
             description: productData.description,
+            weight: productData.weight,
             price: productData.price,
             stock: productData.stock,
             categoryId: productData.categoryId,
