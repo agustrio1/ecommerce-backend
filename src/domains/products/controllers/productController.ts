@@ -39,6 +39,10 @@ export class ProductController {
           updatedAt: img.updatedAt,
         })),
         category: product.category.name,
+        tags: product.tags.map((tag: any) => ({
+          productId: tag.productId,
+          name: tag.name,
+        }))
       }));
 
       res.status(200).json(transformedProducts);
@@ -81,6 +85,10 @@ export class ProductController {
           updatedAt: img.updatedAt,
         })),
         category: product.category.name,
+        tags: product.tags.map((tag: any) => ({
+          productId: tag.productId,
+          name: tag.name,
+        })),
       };
 
       res.status(200).json(transformedProduct);
@@ -97,13 +105,20 @@ export class ProductController {
     upload.array("images", 5),
     async (req: Request, res: Response) => {
       try {
-        const { name, description, weight, price, stock, categoryId } = req.body;
+        const { name, description, weight, price, stock, categoryId, tags } = req.body;
         const files = req.files as Express.Multer.File[];
-
+  
         if (!files || files.length === 0) {
           return res.status(400).json({ error: "Minimal satu gambar diperlukan" });
         }
-
+  
+        // Pisahkan `tags` jika diterima sebagai string
+        const tagsArray = Array.isArray(tags)
+          ? tags
+          : tags
+          ? tags.split(",").map((tag: any) => tag.trim())
+          : undefined;
+  
         const productData: ProductType = {
           name,
           slug: slugify(name, { lower: true }),
@@ -113,10 +128,11 @@ export class ProductController {
           stock: parseInt(stock),
           categoryId,
         } as any;
-
+  
         const product = await this.productService.createProduct(
           productData,
-          files
+          files,
+          tagsArray // Mengirim tags sebagai array
         );
         res.status(201).json(product);
       } catch (error: any) {
@@ -125,6 +141,7 @@ export class ProductController {
       }
     },
   ];
+  
 
   /**
    * Memperbarui produk
@@ -134,21 +151,30 @@ export class ProductController {
     async (req: Request, res: Response) => {
       try {
         const { id } = req.params;
-        const { name, description, price, stock, categoryId } = req.body;
+        const { name, description, weight, price, stock, categoryId, tags } = req.body;
         const files = req.files as Express.Multer.File[];
-
+  
         const productData: Partial<ProductType> = {
           name,
           description,
+          weight: weight ? parseFloat(weight) : undefined,
           price: price ? parseFloat(price) : undefined,
           stock: stock ? parseInt(stock) : undefined,
           categoryId,
         };
-
+  
+        const tagsArray = Array.isArray(tags)
+        ? tags
+        : tags
+        ? tags.split(",").map((tag: any) => tag.trim())
+        : undefined;
+      
+  
         const product = await this.productService.updateProduct(
           id,
           productData,
-          files
+          files,
+          tagsArray
         );
         res.status(200).json(product);
       } catch (error: any) {
@@ -160,6 +186,7 @@ export class ProductController {
       }
     },
   ];
+  
 
   /**
    * Menghapus produk

@@ -14,7 +14,8 @@ export class ProductService {
    */
   async createProduct(
     productData: ProductType,
-    images: Express.Multer.File[]
+    images: Express.Multer.File[],
+    tags?: string[] 
   ): Promise<any> {
     try {
       const slug = slugify(productData.name, { lower: true });
@@ -26,7 +27,7 @@ export class ProductService {
             slug: slug,
             description: productData.description,
             price: productData.price,
-            weight: productData.weight, // Pastikan ini ada di `productData`
+            weight: productData.weight,
             stock: productData.stock,
             category: {
               connect: { id: productData.categoryId },
@@ -34,23 +35,33 @@ export class ProductService {
             images: {
               create: images.map((file, index) => ({
                 image: file.filename,
-                isPrimary: index === 0,
+                isPrimary: index === 0, 
               })),
             },
+            tags: tags?.length
+              ? {
+                  connectOrCreate: tags.map((tag) => ({
+                    where: { name: tag },
+                    create: { name: tag },
+                  })),
+                }
+              : undefined,
           },
           include: {
             images: true,
             category: true,
+            tags: true,
           },
         });
   
-        return product; 
+        return product;
       });
     } catch (error: any) {
       console.error("Error creating product: ", error.message);
       throw new Error("Gagal membuat produk: " + error.message);
     }
   }
+  
   
   /**
    * Mengambil semua produk beserta gambar-gambarnya
@@ -72,6 +83,11 @@ export class ProductService {
               name: true,
             },
           },
+          tags: {
+            select: {
+              name: true,
+            },
+          }
         },
       });
       return products;
@@ -102,6 +118,11 @@ export class ProductService {
               name: true,
             },
           },
+          tags: {
+            select: {
+              name: true,
+            },
+          }
         },
       });
       return product;
@@ -120,7 +141,8 @@ export class ProductService {
   async updateProduct(
     id: string,
     productData: Partial<ProductType>,
-    images?: Express.Multer.File[]
+    images?: Express.Multer.File[],
+    tags?: string[]
   ): Promise<any | null> {
     try {
       return await prisma.$transaction(async (prisma) => {
@@ -132,24 +154,20 @@ export class ProductService {
         if (!existingProduct) {
           throw new Error("Product not found");
         }
-
+  
         // Jika ada gambar baru yang diupload
         if (images && images.length > 0) {
-          // Hapus gambar lama dari server jika perlu
+          // Hapus gambar lama dari server
           for (const img of existingProduct.images) {
-            const imgPath = path.join(
-              __dirname,
-              "../../../../public/images",
-              img.image
-            );
+            const imgPath = path.join(__dirname, "../../../../public/images", img.image);
             if (fs.existsSync(imgPath)) {
               fs.unlinkSync(imgPath);
             }
           }
-
+  
           // Hapus gambar lama dari database
           await prisma.productImage.deleteMany({ where: { productId: id } });
-
+  
           // Tambahkan gambar baru
           await prisma.productImage.createMany({
             data: images.map((file, index) => ({
@@ -159,8 +177,8 @@ export class ProductService {
             })),
           });
         }
-
-        // Perbarui data produk
+  
+        // Perbarui data produk dan tags
         const updatedProduct = await prisma.product.update({
           where: { id },
           data: {
@@ -170,19 +188,31 @@ export class ProductService {
             price: productData.price,
             stock: productData.stock,
             categoryId: productData.categoryId,
+            tags: tags
+              ? {
+                  set: [],
+                  connectOrCreate: tags.map((tag) => ({
+                    where: { name: tag },
+                    create: { name: tag },
+                  })),
+                }
+              : undefined,
           },
           include: {
             images: true,
             category: true,
+            tags: true,
           },
         });
-
+  
         return updatedProduct;
       });
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
+  
+  
 
   /**
    * Menghapus produk beserta gambar-gambarnya
@@ -217,6 +247,7 @@ export class ProductService {
           where: { id },
           include: {
             images: true,
+            tags: true,
           },
         });
 

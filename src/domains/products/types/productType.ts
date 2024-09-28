@@ -8,5 +8,6 @@ export interface ProductType  {
   stock: number;
   categoryId: string;
   images: string[];
+  tags?: string[]
 };
  
