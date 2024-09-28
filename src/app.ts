@@ -13,13 +13,42 @@ import { wishlistRouter } from "./domains/wishlists/route/wishlistRouter";
 import { OrderRouter } from "./domains/orders/router/orderRouter";
 import { ShippingRouter } from "./domains/shippings/router/shipingRouter";
 
+import { createHash } from "crypto";
+import { parseCookies } from "./config/cookies";
+
 import errorHandler from "./middlewares/errorHandler";
+
+const generateCSRFToken  = () => {
+  return createHash("sha256").update(Math.random().toString()).digest("hex");
+}
 
 const app = express();
 
 app.use(cors());
 
+app.use(parseCookies);
+
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if(!req.cookies['XSRF-TOKEN']) {
+    const csrfToken = generateCSRFToken();
+    res.setHeader('Set-Cookie', `XSRF-TOKEN=${csrfToken}; HttpOnly`);
+  }
+  next();
+})
+
+app.use((req, res, next) => {
+  const csrfTokenFromCookie = req.cookies['XSRF-TOKEN'];
+  const csrfTokenFromHeader = req.headers['x-csrf-token'];
+
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    if (csrfTokenFromHeader !== csrfTokenFromCookie) {
+      return res.status(403).json({ message: 'Invalid CSRF token' });
+    }
+  }
+  next();
+});
 
 // Serve static files from "public" directory
 app.use(express.static(path.join(__dirname, "..", "public")));
