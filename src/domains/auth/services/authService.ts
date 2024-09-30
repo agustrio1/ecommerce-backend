@@ -29,13 +29,18 @@ export class AuthService {
   }
 
   /**
-   * Generates a JWT token
-   * @param email
-   * @param role
-   * @returns JWT token string
-   */
-  private generateJwtToken(email: string, role: string): string {
-    return jwt.sign({ email, role }, JWT_SECRET as string, { expiresIn: "1h" });
+ * Generates a JWT token
+ * @param email
+ * @param role
+ * @param userId
+ * @returns JWT token string
+ */
+  private generateJwtToken(email: string, role: string, userId: string): string {
+    return jwt.sign(
+      { email, role, id: userId },
+      JWT_SECRET as string,
+      { expiresIn: "1h", algorithm: "HS256", } 
+    );
   }
 
   /**
@@ -126,7 +131,7 @@ export class AuthService {
       const passwordMatch = await this.verifyPassword(user.password, password);
       if (!passwordMatch) throw new Error("Invalid email or password");
 
-      return this.generateJwtToken(user.email, user.role);
+      return this.generateJwtToken(user.email, user.role, user.id);
     } catch (error) {
       throw error;
     }

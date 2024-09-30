@@ -11,6 +11,7 @@ export class CategoryController {
 
     this.getAllCategories = this.getAllCategories.bind(this);
     this.getCategoryById = this.getCategoryById.bind(this);
+    this.getCategoryBySlug = this.getCategoryBySlug.bind(this);
     this.createCategory = this.createCategory.bind(this);
     this.updateCategory = this.updateCategory.bind(this);
     this.deleteCategory = this.deleteCategory.bind(this);
@@ -40,6 +41,20 @@ export class CategoryController {
     try {
       const { id } = req.params;
       const category = await this.categoryService.getCategoryById(id);
+      if (!category) {
+        return res.status(404).json({ error: "Kategori tidak ditemukan" });
+      }
+      res.status(200).json(category);
+    } catch (error: any) {
+      return res.status(500).json({ error: "Gagal mengambil kategori" });
+    }
+  }
+
+
+  public async getCategoryBySlug(req: Request, res: Response) {
+    try {
+      const { slug } = req.params;
+      const category = await this.categoryService.getCategoryBySlug(slug);
       if (!category) {
         return res.status(404).json({ error: "Kategori tidak ditemukan" });
       }

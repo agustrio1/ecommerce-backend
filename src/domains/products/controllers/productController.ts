@@ -3,7 +3,6 @@ import { ProductService } from "../services/productService";
 import { ProductType } from "../types/productType";
 import { upload } from "../../../config/media";
 import slugify from "slugify";
-import { parentPort } from "worker_threads";
 
 export class ProductController {
   private productService: ProductService;
@@ -97,6 +96,96 @@ export class ProductController {
       res.status(500).json({ error: "Gagal mengambil produk" });
     }
   };
+
+  public getProductBySlug = async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const product = await this.productService.getProductBySlug(slug);
+  
+      if (!product) {
+        return res.status(404).json({ error: "Produk tidak ditemukan" });
+      }
+  
+      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+  
+      const transformedProduct = {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        description: product.description,
+        weight: product.weight,
+        stock: product.stock,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        images: product.images.map((img: any) => ({
+          id: img.id,
+          productId: img.productId,
+          image: baseUrl + img.image,
+          isPrimary: img.isPrimary,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt,
+        })),
+        category: product.category.name,
+        tags: product.tags.map((tag: any) => ({
+          productId: tag.productId,
+          name: tag.name,
+        })),
+      };
+  
+      res.status(200).json(transformedProduct);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal mengambil produk berdasarkan slug" });
+    }
+  };  
+
+  /**
+   * Mendapatkan produk berdasarkan nama kategori
+   */
+  public getProductByCategorySlug = async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const products = await this.productService.getProductByCategorySlug(slug);
+  
+      if (products.length === 0) {
+        return res.status(404).json({ error: "Produk dengan kategori tersebut tidak ditemukan" });
+      }
+  
+      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+  
+      const transformedProducts = products.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        description: product.description,
+        weight: product.weight,
+        stock: product.stock,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        images: product.images.map((img: any) => ({
+          id: img.id,
+          productId: img.productId,
+          image: baseUrl + img.image,
+          isPrimary: img.isPrimary,
+          createdAt: img.createdAt,
+          updatedAt: img.updatedAt,
+        })),
+        category: product.category.name,
+        tags: product.tags.map((tag: any) => ({
+          productId: tag.productId,
+          name: tag.name,
+        })),
+      }));
+  
+      res.status(200).json(transformedProducts);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal mengambil produk berdasarkan kategori" });
+    }
+  };
+  
 
   /**
    * Membuat produk baru

@@ -3,7 +3,7 @@ import { ProductType } from "../types/productType";
 import path from "path";
 import fs from "fs";
 import slugify from "slugify";
-import { Prisma } from "@prisma/client";
+
 
 export class ProductService {
   /**
@@ -131,6 +131,90 @@ export class ProductService {
     }
   }
 
+  /**
+   * Mengambil produk berdasarkan slug beserta gambar-gambarnya
+   * @param slug Slug produk
+   * @returns Produk atau null
+   */
+  async getProductBySlug(slug: string): Promise<any | null> {
+    try {
+      const product = await prisma.product.findUnique({
+        where: { slug },
+        include: {
+          images: {
+            select: {
+              id: true,
+              image: true,
+              isPrimary: true,
+            }
+          },
+          category: {
+            select: {
+              name: true,
+            },
+          },
+          tags: {
+            select: {
+              name: true,
+            },
+          }
+        },
+      });
+      return product;
+    } catch (error: any) {
+      throw new Error("Error fetching product by slug: " + error.message);
+    }
+  }
+
+  
+  /**
+   * Mengambil produk berdasarkan nama kategori beserta gambar-gambarnya
+   * @param categoryName Nama kategori
+   * @returns Produk atau null
+   * @throws {Error} Jika terjadi kesalahan saat mengambil produk berdasarkan kategori
+   */
+  async getProductByCategorySlug(slug: string): Promise<any[]> {
+    try {
+      const products = await prisma.product.findMany({
+        where: {
+        category : {
+          slug: {
+            equals: slug
+          }
+        }
+        },
+        include: {
+          images: {
+            select: {
+              id: true,
+              image: true,
+              isPrimary: true,
+            },
+          },
+          category: {
+            select: {
+              name: true,
+            },
+          },
+          tags: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+  
+      if (products.length === 0) {
+        throw new Error(`Produk dengan kategori '${slug}' tidak ditemukan.`);
+      }
+  
+      return products;
+    } catch (error: any) {
+      throw new Error(`Gagal mengambil produk berdasarkan kategori: ${error.message}`);
+    }
+  }
+  
+  
   /**
    * Memperbarui produk beserta gambar-gambarnya
    * @param id ID produk

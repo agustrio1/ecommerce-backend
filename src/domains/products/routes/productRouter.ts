@@ -10,6 +10,10 @@ productRouter.get('/',  productController.getAllProducts);
 
 productRouter.get('/:id', productController.getProductById);
 
+productRouter.get('/category/:slug',  productController.getProductByCategorySlug);
+
+productRouter.get('/slug/:slug',  productController.getProductBySlug);
+
 productRouter.post('/', adminMiddleware, productController.createProduct);
 
 productRouter.put('/:id', authMiddleware, adminMiddleware, productController.updateProduct);
