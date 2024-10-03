@@ -16,9 +16,16 @@ import { OrderRouter } from "./domains/orders/router/orderRouter";
 import { ShippingRouter } from "./domains/shippings/router/shipingRouter";
 import errorHandler from "./middlewares/errorHandler";
 
+import {CORS_ORIGIN} from "./config/env";
+
 const app = express();
 
-app.use(cors());
+app.use(cors(
+  {
+    origin: [`${CORS_ORIGIN}`, "http://localhost:3000"],
+    credentials: true
+  }
+));
 app.use(express.json());
 app.use(cookieParser());
 
