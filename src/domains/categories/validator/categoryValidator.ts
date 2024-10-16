@@ -7,7 +7,8 @@ export const categoryValidator = {
                 minimum: 3,
             },
             format: {
-                pattern: /^[a-zA-Z0-9]+$/,
+                pattern: /^[a-zA-Z0-9\s]+$/, 
+                message: "Name must contain only letters, numbers, and spaces.",
             },
         },
     },
@@ -19,7 +20,8 @@ export const categoryValidator = {
                 minimum: 3,
             },
             format: {
-                pattern: /^[a-zA-Z0-9]+$/,
+                pattern: /^[a-zA-Z0-9\s]+$/, 
+                message: "Name must contain only letters, numbers, and spaces.",
             },
         },
     },

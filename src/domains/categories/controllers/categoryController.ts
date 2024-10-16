@@ -89,8 +89,8 @@ export class CategoryController {
   public async updateCategory(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const data = req.body; // Mengambil data langsung dari body
-      const currentUserRole = req.user?.role; // Mengambil role dari req.user
+      const data = req.body; 
+      const currentUserRole = req.user?.role; 
 
       if (!data || Object.keys(data).length === 0) {
         return res
