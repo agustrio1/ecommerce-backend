@@ -23,14 +23,18 @@ export const authMiddleware = (
   next: NextFunction
 ) => {
   const token = req.headers.authorization?.split(" ")[1];
+  console.log("Token yang diterima di authMiddleware:", token);
+
   if (!token) {
     return res.status(401).json({ message: "Token tidak ada" });
   }
+
   try {
     const decoded = jwt.verify(
       token,
       JWT_SECRET as string
     ) as UserPayload;
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -39,7 +43,11 @@ export const authMiddleware = (
   }
 };
 
-export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const adminMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
