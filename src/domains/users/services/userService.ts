@@ -45,35 +45,35 @@ export class UserService {
    * @param data
    * @param currentUserRole
    */
-  async updateUser(
-    id: string,
-    data: Partial<User>,
-    currentUserRole: UserRole
-  ): Promise<User> {
-    // Validasi apakah pengguna yang ingin diupdate ada
+  async updateUser(id: string, data: Partial<User>, currentUserRole: UserRole) {
+    console.log("Data yang diterima backend:", data);
+  
+    // Check if data is empty
+    if (Object.keys(data).length === 0) {
+      throw new Error("Tidak ada data yang diberikan untuk diperbarui");
+    }
+  
+    // Find the user by ID
     const checkUser = await prisma.user.findUnique({ where: { id } });
-
     if (!checkUser) {
       throw new Error("User not found");
     }
-
-    if (data.password) {
-      data.password = await this.hashPassword(data.password);
-    }
-
+  
     if (data.role && currentUserRole !== UserRole.ADMIN) {
       throw new Error("Only admins can update user roles");
     }
-
-    try {
-      const updatedUser = await prisma.user.update({
-        where: { id },
-        data,
-      });
-      return updatedUser;
-    } catch (error: any) {
-      throw new Error(error.message);
+  
+    if (data.password) {
+      const hashedPassword = await this.hashPassword(data.password);
+      data.password = hashedPassword;
     }
+  
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data,
+    });
+  
+    return updatedUser;
   }
 
   /**

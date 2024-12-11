@@ -55,31 +55,27 @@ export class CartController {
   async updateCart(req: Request, res: Response) {
     const { userId, productId } = req.body;
     let { quantity } = req.body;
-
+  
     quantity = Number(quantity);
-
-    // Validasi bahwa quantity adalah number dan tidak negatif
+  
     if (isNaN(quantity) || quantity < 0) {
       return res.status(400).json({
         error: "Quantity harus berupa angka yang valid dan tidak negatif.",
       });
     }
-
+  
     try {
-      const cart = await this.cartService.updateCart(
-        userId,
-        productId,
-        quantity
-      );
+      const cart = await this.cartService.updateCart(userId, productId, quantity);
       return res.status(200).json(cart);
     } catch (error: any) {
+      console.error("Error updating cart:", error.message); 
       if (error instanceof ApiError) {
         return res.status(error.statusCode).json({ error: error.message });
       }
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: "Internal server error." });
     }
   }
-
+  
   /**
    * Mengambil semua entri keranjang untuk pengguna tertentu
    */
