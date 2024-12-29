@@ -16,8 +16,15 @@ export class ProductController {
    */
   public getAllProducts = async (req: Request, res: Response) => {
     try {
-      const products = await this.productService.getAllProducts();
+
+      const searchTerm = req.query.search as string || '';
+  
+      const products = await this.productService.getAllProducts(searchTerm);
       const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+
+      if (products.length === 0) {
+        return res.status(404).json({ error: "Produk tidak ditemukan" });
+      }
 
       const transformedProducts = products.map((product) => ({
         id: product.id,
@@ -43,7 +50,7 @@ export class ProductController {
           name: tag.name,
         }))
       }));
-
+  
       res.status(200).json(transformedProducts);
     } catch (error: any) {
       console.error(error);
@@ -183,6 +190,20 @@ export class ProductController {
     } catch (error: any) {
       console.error(error);
       res.status(500).json({ error: "Gagal mengambil produk berdasarkan kategori" });
+    }
+  };
+
+  /**
+   * Mendapatkan produk terbaru
+   */
+
+  public getLatestProducts = async (req: Request, res: Response) => {
+    try {
+      const products = await this.productService.getLatestProducts();
+      res.status(200).json(products);
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Gagal mengambil produk terbaru" });
     }
   };
   

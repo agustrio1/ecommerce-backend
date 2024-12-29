@@ -21,3 +21,5 @@ export const EMAIL_PASS = process.env.EMAIL_PASS;
 export const SHIPPINGS_TOKEN= process.env.SHIPPINGS_TOKEN;
 export const RAJAONGKIR_BASE_URL= process.env.RAJAONGKIR_BASE_URL;
 export const RAJAONGKIR_BASE_CITY_URL= process.env.RAJAONGKIR_BASE_CITY_URL;
+export const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY;
+export const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY;

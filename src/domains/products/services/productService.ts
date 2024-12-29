@@ -3,7 +3,7 @@ import { ProductType } from "../types/productType";
 import path from "path";
 import fs from "fs";
 import slugify from "slugify";
-
+import { contains } from "validate.js";
 
 export class ProductService {
   /**
@@ -15,11 +15,11 @@ export class ProductService {
   async createProduct(
     productData: ProductType,
     images: Express.Multer.File[],
-    tags?: string[] 
+    tags?: string[]
   ): Promise<any> {
     try {
       const slug = slugify(productData.name, { lower: true });
-  
+
       return await prisma.$transaction(async (prisma) => {
         const product = await prisma.product.create({
           data: {
@@ -35,7 +35,7 @@ export class ProductService {
             images: {
               create: images.map((file, index) => ({
                 image: file.filename,
-                isPrimary: index === 0, 
+                isPrimary: index === 0,
               })),
             },
             tags: tags?.length
@@ -53,7 +53,7 @@ export class ProductService {
             tags: true,
           },
         });
-  
+
         return product;
       });
     } catch (error: any) {
@@ -61,15 +61,25 @@ export class ProductService {
       throw new Error("Gagal membuat produk: " + error.message);
     }
   }
-  
-  
+
   /**
    * Mengambil semua produk beserta gambar-gambarnya
    * @returns Array produk
    */
-  async getAllProducts(): Promise<any[]> {
+  async getAllProducts(searchTerm: string = ''): Promise<any[]> {
     try {
+      const where: any = {};
+  
+      if (searchTerm.trim()) {
+        where.name = {
+          contains: searchTerm,
+          mode: 'insensitive',
+        };
+      }
+  
       const products = await prisma.product.findMany({
+        where: where,
+        orderBy: { createdAt: 'desc' },
         include: {
           images: {
             select: {
@@ -87,15 +97,16 @@ export class ProductService {
             select: {
               name: true,
             },
-          }
+          },
         },
       });
+  
       return products;
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
-
+  
   /**
    * Mengambil produk berdasarkan ID beserta gambar-gambarnya
    * @param id ID produk
@@ -111,7 +122,7 @@ export class ProductService {
               id: true,
               image: true,
               isPrimary: true,
-            }
+            },
           },
           category: {
             select: {
@@ -122,7 +133,7 @@ export class ProductService {
             select: {
               name: true,
             },
-          }
+          },
         },
       });
       return product;
@@ -146,7 +157,7 @@ export class ProductService {
               id: true,
               image: true,
               isPrimary: true,
-            }
+            },
           },
           category: {
             select: {
@@ -157,7 +168,7 @@ export class ProductService {
             select: {
               name: true,
             },
-          }
+          },
         },
       });
       return product;
@@ -166,7 +177,6 @@ export class ProductService {
     }
   }
 
-  
   /**
    * Mengambil produk berdasarkan nama kategori beserta gambar-gambarnya
    * @param categoryName Nama kategori
@@ -177,11 +187,11 @@ export class ProductService {
     try {
       const products = await prisma.product.findMany({
         where: {
-        category : {
-          slug: {
-            equals: slug
-          }
-        }
+          category: {
+            slug: {
+              equals: slug,
+            },
+          },
         },
         include: {
           images: {
@@ -203,18 +213,55 @@ export class ProductService {
           },
         },
       });
-  
+
       if (products.length === 0) {
         throw new Error(`Produk dengan kategori '${slug}' tidak ditemukan.`);
       }
-  
+
       return products;
     } catch (error: any) {
-      throw new Error(`Gagal mengambil produk berdasarkan kategori: ${error.message}`);
+      throw new Error(
+        `Gagal mengambil produk berdasarkan kategori: ${error.message}`
+      );
     }
   }
-  
-  
+
+  /**
+   * Mengambil produk berdasarkan produk terbaru beserta gambar-gambarnya
+   * @returns Produk terbaru
+   */
+  async getLatestProducts(): Promise<any[]> {
+    try {
+      const products = await prisma.product.findMany({
+        orderBy: {
+          createdAt: "desc", // Mengurutkan berdasarkan createdAt secara menurun
+        },
+        include: {
+          images: {
+            select: {
+              id: true,
+              image: true,
+              isPrimary: true,
+            },
+          },
+          category: {
+            select: {
+              name: true,
+            },
+          },
+          tags: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+      return products;
+    } catch (error: any) {
+      throw new Error("Error fetching latest products: " + error.message);
+    }
+  }
+
   /**
    * Memperbarui produk beserta gambar-gambarnya
    * @param id ID produk
@@ -238,20 +285,24 @@ export class ProductService {
         if (!existingProduct) {
           throw new Error("Product not found");
         }
-  
+
         // Jika ada gambar baru yang diupload
         if (images && images.length > 0) {
           // Hapus gambar lama dari server
           for (const img of existingProduct.images) {
-            const imgPath = path.join(__dirname, "../../../../public/images", img.image);
+            const imgPath = path.join(
+              __dirname,
+              "../../../../public/images",
+              img.image
+            );
             if (fs.existsSync(imgPath)) {
               fs.unlinkSync(imgPath);
             }
           }
-  
+
           // Hapus gambar lama dari database
           await prisma.productImage.deleteMany({ where: { productId: id } });
-  
+
           // Tambahkan gambar baru
           await prisma.productImage.createMany({
             data: images.map((file, index) => ({
@@ -261,7 +312,7 @@ export class ProductService {
             })),
           });
         }
-  
+
         // Perbarui data produk dan tags
         const updatedProduct = await prisma.product.update({
           where: { id },
@@ -288,15 +339,13 @@ export class ProductService {
             tags: true,
           },
         });
-  
+
         return updatedProduct;
       });
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
-  
-  
 
   /**
    * Menghapus produk beserta gambar-gambarnya

@@ -14,6 +14,8 @@ productRouter.get('/category/:slug',  productController.getProductByCategorySlug
 
 productRouter.get('/slug/:slug',  productController.getProductBySlug);
 
+productRouter.get('/latest',  productController.getLatestProducts);
+
 productRouter.post('/', adminMiddleware, productController.createProduct);
 
 productRouter.put('/:id', authMiddleware, adminMiddleware, productController.updateProduct);

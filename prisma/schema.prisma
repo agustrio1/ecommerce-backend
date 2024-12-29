@@ -21,6 +21,7 @@ model User {
   orders           Order[]
   addresses        Address[]
   wishlist         WishlistItem[]
+  payments         Payment[]
 
   @@map("users")
 }
@@ -29,6 +30,7 @@ model Category {
   id        String    @id @default(cuid())
   name      String    @unique  
   slug      String    @unique @default("")
+  image     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]
@@ -97,6 +99,7 @@ model Order {
   address   Address    @relation("OrderShippingAddress", fields: [addressId], references: [id])
   shipment  Shipment[]
   discounts Discount[]
+  payment   Payment[]
 
   @@unique([userId, addressId])
   @@map("orders")
@@ -157,6 +160,20 @@ model Shipment {
   shipmentHistory ShipmentHistory[]
 
   @@map("shipments")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId   String
+  orderId   String
+  amount    Float @default(0)
+  status    PaymentStatus @default(PENDING)
+  order     Order    @relation(fields: [orderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
 }
 
 model Discount {
@@ -220,6 +237,7 @@ enum PaymentStatus {
   FAILED
   PENDING
   CANCELED
+  CHALLENGE
 }
 
 enum ShipmentStatus {
