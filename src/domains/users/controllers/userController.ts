@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/userService";
 import { UserRole } from "../types/userType";
+import { User } from "@prisma/client";
 
 export class UserController {
   private userService: UserService;
@@ -51,24 +52,23 @@ export class UserController {
    */
   public async updateUser(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const { data, role } = req.body;
+        const { id } = req.params;
+        const { name, email, password, role } = req.body;
 
-      if (!data) {
-        return res
-          .status(400)
-          .json({ error: "Tidak ada data yang diberikan untuk diperbarui" });
-      }
+        const data: Partial<User> = { name, email };
+        if (password) data.password = password;
+        if (role) data.role = role;
 
-      const user = await this.userService.updateUser(id, data, role);
-      res.status(200).json({ user });
+        const user = await this.userService.updateUser(id, data, role);
+        res.status(200).json({ user });
     } catch (error: any) {
-      if (error.message === "User not found") {
-        return res.status(404).json({ error: error.message });
-      }
-      return res.status(500).json({ error: "Gagal memperbarui pengguna" });
+        if (error.message === "User not found") {
+            return res.status(404).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Gagal memperbarui pengguna" });
     }
-  }
+}
+
 
   /**
    * Menghapus pengguna

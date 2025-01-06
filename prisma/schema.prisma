@@ -101,7 +101,6 @@ model Order {
   discounts Discount[]
   payment   Payment[]
 
-  @@unique([userId, addressId])
   @@map("orders")
 }
 
@@ -116,7 +115,6 @@ model OrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([orderId, productId])
   @@map("order_items")
 }
 
@@ -269,4 +267,5 @@ enum Service {
   CTC
   YES
   OKE
+  Pos_Reguler
 }

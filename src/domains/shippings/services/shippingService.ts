@@ -58,36 +58,34 @@ export class ShippingService {
   async createShipment(shipmentData: CreateShipmentDTO): Promise<Shipment> {
     try {
       const { orderId, courier, service } = shipmentData;
-
+  
       const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { address: true, orderItems: { include: { product: true } } },
       });
-
+  
       if (!order || !order.address) {
         throw new Error("Order atau alamat tidak ditemukan.");
       }
-
-      // Ambil berat produk dari orderItems
+  
       const totalWeight = order.orderItems.reduce((sum, item) => {
         return sum + item.product.weight * item.quantity;
-      }, 0);      
-
+      }, 0);
       const totalWeightInGrams = Math.round(totalWeight * 1000);
-
+  
       const originCity = this.KEDIRI_ID;
       const destinationCityName = order.address.city;
       const destinationProvinceName = order.address.state;
-
+  
       const destinationCityId = await this.getCityIdByName(
         destinationCityName,
         destinationProvinceName
       );
+  
       if (!destinationCityId) {
         throw new Error(`Kota ${destinationCityName} tidak ditemukan.`);
       }
-
-      // Buat request ke Raja Ongkir
+  
       const response = await axios.post(
         RAJAONGKIR_BASE_URL as string,
         {
@@ -100,20 +98,28 @@ export class ShippingService {
           headers: { key: SHIPPINGS_TOKEN as string },
         }
       );
-
+  
       const results = response.data.rajaongkir.results;
-
+  
       if (!results || results.length === 0) {
         throw new Error("Tidak ada hasil dari Raja Ongkir");
       }
-
+  
       const costs = results[0].costs;
+  
       let selectedService =
-        costs.find((item: any) => item.service === service) || costs[0];
-
+        costs.find(
+          (item: any) =>
+            item.service === service || 
+            (service === "Pos Reguler" &&
+              item.service.toLowerCase() === "pos reguler")
+        ) || costs[0];
+  
       if (selectedService.cost && selectedService.cost.length > 0) {
         const { value, etd } = selectedService.cost[0];
-
+  
+        const serviceEnumValue = selectedService.service === "Pos Reguler" ? "Pos_Reguler" : selectedService.service;
+  
         const createdShipment = await prisma.shipment.create({
           data: {
             orderId: orderId,
@@ -121,12 +127,12 @@ export class ShippingService {
             destinationCity: destinationCityId,
             weight: totalWeightInGrams,
             courier: courier,
-            service: selectedService.service,
+            service: serviceEnumValue, // Simpan dengan enum yang benar
             cost: value,
             etd: etd,
           } as any,
         });
-
+  
         return createdShipment;
       } else {
         throw new Error(
@@ -134,7 +140,6 @@ export class ShippingService {
         );
       }
     } catch (error: any) {
-      console.error("Error during shipment creation:", error.message);
       throw new Error(`Gagal membuat pengiriman: ${error.message}`);
     }
   }

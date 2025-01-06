@@ -3,11 +3,14 @@ import midtransClient from "midtrans-client-typescript";
 import { MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY } from "../../../config/env";
 import { PaymentStatus } from "@prisma/client";
 
+/**
+ * Kelas PaymentService digunakan untuk menangani proses pembayaran menggunakan Midtrans.
+ */
 export class PaymentService {
   private snap: any;
 
   /**
-   * Inisialisasi klien Midtrans Snap dengan konfigurasi yang diberikan.
+   * Konstruktor untuk menginisialisasi konfigurasi Midtrans Snap Client.
    */
   constructor() {
     this.snap = new midtransClient.Snap({
@@ -18,15 +21,15 @@ export class PaymentService {
   }
 
   /**
-   * Membuat pembayaran baru untuk pesanan tertentu.
+   * Membuat pembayaran baru berdasarkan ID pesanan dan ID pengguna.
+   * 
    * @param {string} orderId - ID pesanan yang akan dibayar.
    * @param {string} userId - ID pengguna yang melakukan pembayaran.
-   * @returns {Promise<{ token: string; redirectUrl: string }>} - Token dan URL redirect dari Midtrans.
-   * @throws Akan melemparkan error jika terjadi kegagalan dalam pembuatan pembayaran.
+   * @returns {Promise<{ token: string; redirectUrl: string }>} Token transaksi dan URL redirect ke halaman pembayaran Midtrans.
+   * @throws {Error} Jika terjadi kesalahan dalam proses pembuatan pembayaran.
    */
   async createPayment(orderId: string, userId: string): Promise<{ token: string; redirectUrl: string }> {
     try {
-      // Ambil data pesanan beserta pengiriman dan detail pengguna
       const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: {
@@ -36,122 +39,152 @@ export class PaymentService {
               addresses: true,
             },
           },
+          orderItems: {
+            include: {
+              product: {
+                include: {
+                  category: { select: { name: true } },
+                  images: { select: { image: true }, take: 1 },
+                },
+              },
+            },
+          },
         },
       });
 
-      if (!order) {
-        throw new Error("Pesanan tidak ditemukan");
-      }
+      if (!order) throw new Error("Pesanan tidak ditemukan");
 
-      const { user, shipment } = order;
+      const { user, shipment, orderItems } = order;
 
-      if (!user || !user.addresses.length) {
-        throw new Error("Pengguna atau alamat tidak ditemukan");
-      }
+      if (!user || !user.addresses.length) throw new Error("Pengguna atau alamat tidak ditemukan");
 
-      // Hitung total biaya pengiriman
       const shippingCost = shipment.reduce((sum, ship) => sum + ship.cost, 0);
 
-      // Hitung jumlah total pembayaran
-      const totalAmount = order.total + shippingCost;
+      // Menyiapkan rincian item dan menghitung jumlah keseluruhan (gross amount)
+      const itemDetails = orderItems.map((item) => ({
+        id: item.productId,
+        price: item.price,
+        quantity: item.quantity,
+        name: item.product.name.substring(0, 50),
+        category: item.product.category.name,
+        images: item.product.images[0]?.image || "",
+      }));
+      const itemsTotal = itemDetails.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const grossAmount = itemsTotal + shippingCost;
 
-      // Siapkan detail transaksi untuk Midtrans
+      // Menyiapkan rincian transaksi untuk Midtrans
       const transactionDetails = {
         transaction_details: {
           order_id: orderId,
-          gross_amount: totalAmount,
+          gross_amount: grossAmount,
         },
+        item_details: [
+          ...itemDetails,
+          {
+            id: "shipping-cost",
+            price: shippingCost,
+            quantity: 1,
+            name: "Ongkos Kirim",
+          },
+        ],
         customer_details: {
           first_name: user.name,
           email: user.email,
-          phone: user.addresses[0].phone,
+          phone: user.addresses[0]?.phone || "",
           billing_address: {
             first_name: user.name,
-            phone: user.addresses[0].phone,
-            address: user.addresses[0].address1,
-            city: user.addresses[0].city,
-            postal_code: user.addresses[0].postalCode,
+            phone: user.addresses[0]?.phone || "",
+            address: user.addresses[0]?.address1 || "",
+            city: user.addresses[0]?.city || "",
+            postal_code: user.addresses[0]?.postalCode || "",
             country_code: "IDN",
           },
         },
-        credit_card: {
-          secure: true,
+        shipping_address: {
+          first_name: user.name,
+          phone: user.addresses[0]?.phone || "",
+          address: user.addresses[0]?.address1 || "",
+          city: user.addresses[0]?.city || "",
+          postal_code: user.addresses[0]?.postalCode || "",
+          country_code: "IDN",
         },
+        credit_card: { secure: true },
       };
 
-      // Buat transaksi dengan Midtrans
       const transaction = await this.snap.createTransaction(transactionDetails);
 
-      // Simpan detail pembayaran ke database
+      // Simpan data pembayaran ke database
       await prisma.payment.create({
         data: {
           orderId,
-          amount: totalAmount,
+          amount: grossAmount,
           status: PaymentStatus.PENDING,
           userId,
         },
       });
 
-      // Kembalikan token dan URL redirect dari Midtrans
       return {
         token: transaction.token,
         redirectUrl: transaction.redirect_url,
       };
     } catch (error: any) {
-      console.error(error);
+      console.error("Error in createPayment:", error);
       throw new Error(`Gagal membuat pembayaran: ${error.message}`);
     }
   }
 
   /**
-   * Menangani notifikasi callback dari Midtrans.
-   * @param {object} notification - Data notifikasi yang diterima dari Midtrans.
-   * @returns {Promise<{ success: boolean }>} - Status penanganan notifikasi.
-   * @throws Akan melemparkan error jika terjadi kegagalan dalam penanganan notifikasi.
+   * Menangani callback notifikasi dari Midtrans.
+   * 
+   * @param {any} notification - Notifikasi yang diterima dari Midtrans.
+   * @returns {Promise<{ success: boolean }>} Status keberhasilan penanganan notifikasi.
+   * @throws {Error} Jika terjadi kesalahan dalam proses penanganan callback.
    */
   async handleCallback(notification: any): Promise<{ success: boolean }> {
     try {
-      // Dapatkan status transaksi dari notifikasi
       const statusResponse = await this.snap.transaction.notification(notification);
-      const orderId = statusResponse.order_id;
-      const transactionStatus = statusResponse.transaction_status;
-      const fraudStatus = statusResponse.fraud_status;
+      const { order_id: orderId, transaction_status: transactionStatus, fraud_status: fraudStatus } = statusResponse;
 
-      // Tentukan status pembayaran berdasarkan status transaksi dan fraud
-      let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
-      if (transactionStatus === "capture") {
-        if (fraudStatus === "challenge") {
-          paymentStatus = PaymentStatus.CHALLENGE;
-        } else if (fraudStatus === "accept") {
+      let paymentStatus: PaymentStatus;
+
+      // Menentukan status pembayaran berdasarkan transaksi
+      switch (transactionStatus) {
+        case "capture":
+          paymentStatus = fraudStatus === "challenge" ? PaymentStatus.CHALLENGE : PaymentStatus.SUCCESS;
+          break;
+        case "settlement":
           paymentStatus = PaymentStatus.SUCCESS;
-        }
-      } else if (transactionStatus === "settlement") {
-        paymentStatus = PaymentStatus.SUCCESS;
-      } else if (
-        transactionStatus === "cancel" ||
-        transactionStatus === "deny" ||
-        transactionStatus === "expire"
-      ) {
-        paymentStatus = PaymentStatus.FAILED;
-      } else if (transactionStatus === "pending") {
-        paymentStatus = PaymentStatus.PENDING;
+          break;
+        case "cancel":
+        case "deny":
+        case "expire":
+          paymentStatus = PaymentStatus.FAILED;
+          break;
+        case "pending":
+          paymentStatus = PaymentStatus.PENDING;
+          break;
+        default:
+          paymentStatus = PaymentStatus.PENDING;
+          break;
       }
 
+      // Perbarui status pembayaran di database
       await prisma.payment.update({
         where: { id: orderId },
         data: { status: paymentStatus },
       });
 
       if (paymentStatus === PaymentStatus.SUCCESS) {
+        // Tandai pesanan sebagai "PAID" jika pembayaran berhasil
         await prisma.order.update({
           where: { id: orderId },
-          data: { status: paymentStatus },
+          data: { status: "PAID" as any },
         });
       }
 
       return { success: true };
     } catch (error: any) {
-      console.error(error);
+      console.error("Error in handleCallback:", error);
       throw new Error(`Gagal menangani callback pembayaran: ${error.message}`);
     }
   }
