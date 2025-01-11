@@ -66,8 +66,13 @@ export class ProductService {
    * Mengambil semua produk beserta gambar-gambarnya
    * @returns Array produk
    */
-  async getAllProducts(searchTerm: string = ''): Promise<any[]> {
+  async getAllProducts(
+    page: number = 1,
+    limit: number = 10,
+    searchTerm: string = ''
+  ): Promise<any> {
     try {
+      const skip = (page - 1) * limit;
       const where: any = {};
   
       if (searchTerm.trim()) {
@@ -77,35 +82,52 @@ export class ProductService {
         };
       }
   
-      const products = await prisma.product.findMany({
-        where: where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          images: {
-            select: {
-              id: true,
-              image: true,
-              isPrimary: true,
-            },
-          },
-          category: {
-            select: {
-              name: true,
-            },
-          },
-          tags: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
+      const [total, products] = await prisma.$transaction([
+        prisma.product.count({ where }),
   
-      return products;
+        prisma.product.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            images: {
+              select: {
+                id: true,
+                image: true,
+                isPrimary: true,
+              },
+            },
+            category: {
+              select: {
+                name: true,
+              },
+            },
+            tags: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        }),
+      ]);
+  
+      const totalPages = Math.ceil(total / limit);
+  
+      return {
+        data: products,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+        },
+      };
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
+  
   
   /**
    * Mengambil produk berdasarkan ID beserta gambar-gambarnya

@@ -13,6 +13,7 @@ export class UserController {
     this.getUser = this.getUser.bind(this);
     this.updateUser = this.updateUser.bind(this);
     this.deleteUser = this.deleteUser.bind(this);
+    this.getUserStats = this.getUserStats.bind(this);
   }
 
   /**
@@ -41,6 +42,18 @@ export class UserController {
       res.status(200).json({ user });
     } catch (error: any) {
       return res.status(500).json({ error: "Gagal mengambil pengguna" });
+    }
+  }
+
+  /**
+   * Get user statistics
+   */
+  public async getUserStats(req: Request, res: Response) {
+    try {
+      const stats = await this.userService.getUserStats();
+      res.status(200).json(stats);
+    } catch (error: any) {
+      return res.status(500).json({ error: "Failed to retrieve user statistics" });
     }
   }
 

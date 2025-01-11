@@ -14,6 +14,8 @@ export class OrderController {
     this.getAllOrders = this.getAllOrders.bind(this);
     this.getOrderById = this.getOrderById.bind(this);
     this.getOrdersByUserId = this.getOrdersByUserId.bind(this);
+    this.getTopSellingProducts = this.getTopSellingProducts.bind(this);
+    this.getOrderStatistics = this.getOrderStatistics.bind(this);
     this.deleteOrder = this.deleteOrder.bind(this);
   }
 
@@ -70,12 +72,16 @@ export class OrderController {
    */
   async getAllOrders(req: Request, res: Response): Promise<void> {
     try {
-      const orders = await this.orderService.getAllOrders();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const result = await this.orderService.getAllOrders(page, limit);
+
       res.status(200).json({
         code: 200,
         status: "success",
         message: "Order berhasil diambil",
-        data: orders,
+        ...result,
       });
     } catch (error: any) {
       res.status(400).json({
@@ -125,12 +131,20 @@ export class OrderController {
   async getOrdersByUserId(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.params.userId;
-      const orders = await this.orderService.getOrdersByUserId(userId);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const result = await this.orderService.getOrdersByUserId(
+        userId,
+        page,
+        limit
+      );
+
       res.status(200).json({
         code: 200,
         status: "success",
         message: "Order berhasil diambil",
-        data: orders,
+        ...result,
       });
     } catch (error: any) {
       res.status(400).json({
@@ -139,6 +153,51 @@ export class OrderController {
       });
     }
   }
+
+  /**
+ * Mendapatkan produk yang paling laku
+ */
+async getTopSellingProducts(req: Request, res: Response): Promise<void> {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const products = await this.orderService.getTopSellingProducts(limit);
+    
+    res.status(200).json({
+      code: 200,
+      status: "success",
+      message: "Berhasil mendapatkan produk terlaku",
+      data: products
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      status: "error",
+      message: "Gagal mendapatkan produk terlaku",
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Mendapatkan statistik order
+ */
+async getOrderStatistics(req: Request, res: Response): Promise<void> {
+  try {
+    const statistics = await this.orderService.getOrderStatistics();
+    
+    res.status(200).json({
+      code: 200,
+      status: "success",
+      message: "Berhasil mendapatkan statistik order",
+      data: statistics
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      status: "error", 
+      message: "Gagal mendapatkan statistik order",
+      error: error.message
+    });
+  }
+}
 
   /**
    * Menghapus order berdasarkan ID.

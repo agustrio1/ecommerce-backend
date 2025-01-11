@@ -40,6 +40,19 @@ export class UserService {
   }
 
   /**
+   * Get User Statistics
+   * @returns User count
+   */
+  async getUserStats(): Promise<{ totalUsers: number }> {
+    try {
+      const totalUsers = await prisma.user.count();
+      return { totalUsers };
+    } catch (error: any) {
+      throw new Error(`Failed to get user statistics: ${error.message}`);
+    }
+  }
+
+  /**
    * Update User
    * @param id
    * @param data

@@ -16,17 +16,18 @@ export class ProductController {
    */
   public getAllProducts = async (req: Request, res: Response) => {
     try {
-
-      const searchTerm = req.query.search as string || '';
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const searchTerm = (req.query.search as string) || '';
   
-      const products = await this.productService.getAllProducts(searchTerm);
-      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
-
-      if (products.length === 0) {
-        return res.status(404).json({ error: "Produk tidak ditemukan" });
-      }
-
-      const transformedProducts = products.map((product) => ({
+      // Panggil service dengan pagination dan searchTerm
+      const result = await this.productService.getAllProducts(page, limit, searchTerm);
+  
+      // Base URL untuk gambar
+      const baseUrl = `${req.protocol}://${req.get('host')}/images/`;
+  
+      // Transformasi data produk
+      const transformedProducts = result.data.map((product: any) => ({
         id: product.id,
         name: product.name,
         slug: product.slug,
@@ -48,15 +49,23 @@ export class ProductController {
         tags: product.tags.map((tag: any) => ({
           productId: tag.productId,
           name: tag.name,
-        }))
+        })),
       }));
   
-      res.status(200).json(transformedProducts);
+      // Response dengan pagination metadata
+      res.status(200).json({
+        code: 200,
+        status: 'success',
+        message: 'Produk berhasil diambil',
+        data: transformedProducts,
+        meta: result.meta, // Metadata dari service
+      });
     } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: "Gagal mengambil produk" });
+      res.status(500).json({ error: 'Gagal mengambil produk' });
     }
   };
+  
 
   /**
    * Mendapatkan satu produk berdasarkan ID
