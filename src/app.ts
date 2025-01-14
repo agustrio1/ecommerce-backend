@@ -15,6 +15,8 @@ import { wishlistRouter } from "./domains/wishlists/route/wishlistRouter";
 import { OrderRouter } from "./domains/orders/router/orderRouter";
 import { ShippingRouter } from "./domains/shippings/router/shipingRouter";
 import { PaymentRouter } from "./domains/payments/router/paymentRouter";
+import {sendEmailRouter} from './domains/send-email/route/sendEmailRouter'
+import { notificationRoute } from "./domains/notifications/router/notificationRouter";
 import errorHandler from "./middlewares/errorHandler";
 
 import {CORS_ORIGIN} from "./config/env";
@@ -55,6 +57,8 @@ app.use("/api/wishlists", wishlistRouter);
 app.use("/api/orders", OrderRouter);
 app.use("/api/shippings", ShippingRouter);
 app.use("/api/payments", PaymentRouter);
+app.use("/api/send-email", sendEmailRouter);
+app.use("/api/notifications", notificationRoute);
 
 // Error handling middleware
 app.use(errorHandler);

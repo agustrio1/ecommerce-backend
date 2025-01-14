@@ -53,6 +53,26 @@ export class UserService {
   }
 
   /**
+   * Update Email Notification Preference
+   * @param userId - User ID
+   * @param isEnabled - Boolean to enable or disable email notifications
+   */
+  async updateEmailNotificationPreference(userId: string, isEnabled: boolean) {
+    try {
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          isEmailNotificationEnabled: isEnabled,
+        },
+      });
+
+      return user;
+    } catch (error: any) {
+      throw new Error(`Failed to update email notification preference: ${error.message}`);
+    }
+  }
+
+  /**
    * Update User
    * @param id
    * @param data

@@ -23,22 +23,19 @@ export class DiscountController {
   async createDiscount(req: Request, res: Response) {
     const error = validate(req.body, DiscountValidator.create);
     if (error) {
-      return res.status(400).json({ error: error });
+      return res.status(400).json({ error });
     }
-
+  
     const discountData: CreateDiscountDTO = req.body;
-
+  
     try {
       const discount = await this.discountService.createDiscount(discountData);
       return res.status(201).json(discount);
     } catch (error: any) {
-      if (error instanceof ApiError) {
-        return res.status(error.statusCode).json({ error: error.message });
-      }
-      return res.status(500).json({ error: error.message });
+      console.error('Error in createDiscount controller:', error);
+      return res.status(400).json({ error: error.message });
     }
   }
-
   // Update Discount
   async updateDiscount(req: Request, res: Response) {
     const error = validate(req.body, DiscountValidator.update);

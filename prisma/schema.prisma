@@ -13,6 +13,7 @@ model User {
   email            String         @unique
   password         String
   role             Role
+  isEmailNotificationEnabled Boolean @default(true)
   resetToken       String?
   resetTokenExpiry DateTime?
   createdAt        DateTime       @default(now())
@@ -22,6 +23,7 @@ model User {
   addresses        Address[]
   wishlist         WishlistItem[]
   payments         Payment[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -223,6 +225,18 @@ model WishlistItem {
 
   @@unique([userId, productId])
   @@map("wishlist_items")
+}
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  isRead    Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notifications")
 }
 
 enum AddressType {

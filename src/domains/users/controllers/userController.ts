@@ -58,6 +58,26 @@ export class UserController {
   }
 
   /**
+   * Memperbarui preferensi notifikasi email pengguna
+   * @param req - Request yang berisi ID pengguna dan status notifikasi email
+   * @param res - Response yang akan dikirimkan setelah proses selesai
+   */
+
+  public async updateEmailNotificationPreference(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { isEnabled } = req.body;
+      const user = await this.userService.updateEmailNotificationPreference(userId, isEnabled);
+      res.status(200).json({ user });
+    } catch (error: any) {
+      if (error.message === "User not found") {
+        return res.status(404).json({ error: error.message });
+      }
+      return res.status(500).json({ error: "Gagal memperbarui preferensi notifikasi email" });
+    }
+  }
+
+  /**
    * Memperbarui data pengguna
    * @param id
    * @param data
