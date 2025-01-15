@@ -58,7 +58,8 @@ export class ProductController {
         status: 'success',
         message: 'Produk berhasil diambil',
         data: transformedProducts,
-        meta: result.meta, // Metadata dari service
+        meta: result.meta,
+        searchTerm: result.searchTerm,
       });
     } catch (error: any) {
       console.error(error);

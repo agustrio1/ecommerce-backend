@@ -9,7 +9,7 @@ notificationRoute.post("/", authMiddleware, notificationController.createNotific
 
 notificationRoute.get("/", adminMiddleware, notificationController.getNotifications);
 
-notificationRoute.get("/:userId", authMiddleware, notificationController.getNotification);
+notificationRoute.get("/:userId", authMiddleware, notificationController.getNotificationsByUserId);
 
 notificationRoute.put("/read/:notificationId", authMiddleware, notificationController.markAsRead);
 

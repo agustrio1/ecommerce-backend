@@ -9,7 +9,7 @@ export class NotificationController {
     this.notificationService = new NotificationService();
 
     this.getNotifications = this.getNotifications.bind(this);
-    this.getNotification = this.getNotification.bind(this);
+    this.getNotificationsByUserId = this.getNotificationsByUserId.bind(this);
     this.createNotificationForAll = this.createNotificationForAll.bind(this);
     this.deleteNotification = this.deleteNotification.bind(this);
     this.markAsRead = this.markAsRead.bind(this);
@@ -22,28 +22,42 @@ export class NotificationController {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
 
-      const { notifications, totalCount, totalPages } = await this.notificationService.getNotificationsByUserId(userId, page, pageSize);
+      const { notifications, totalCount, totalPages } = await this.notificationService.getNotifications(userId, page, pageSize);
       res.status(200).json({ notifications, totalCount, totalPages, currentPage: page });
     } catch (error: any) {
       return res.status(500).json({ error: "Gagal mengambil notifikasi" });
     }
   }
 
-  // Mendapatkan satu notifikasi berdasarkan ID
-  public async getNotification(req: Request, res: Response) {
+  // Mendapatkan satu notifikasi berdasarkan  user ID
+  public async getNotificationsByUserId(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      const notification = await this.notificationService.getNotificationsByUserId(id);
-      if (!notification) {
-        return res.status(404).json({ error: "Notifikasi tidak ditemukan" });
+      const { userId } = req.params;
+  
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'User ID is required',
+          data: []
+        });
       }
-      res.status(200).json({ notification });
+  
+      const result = await this.notificationService.getNotificationsByUserId(userId);
+      
+      return res.status(200).json({
+        success: true,
+        ...result // This will spread notifications, totalCount, totalPages, and currentPage
+      });
+  
     } catch (error: any) {
-      return res.status(500).json({ error: "Gagal mengambil notifikasi" });
+      console.error('Controller error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to retrieve notifications',
+        data: []
+      });
     }
   }
-
-
   // Membuat notifikasi untuk semua user
   public async createNotificationForAll(req: Request, res: Response) {
     try {

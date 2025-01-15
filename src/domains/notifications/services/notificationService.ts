@@ -135,7 +135,7 @@ export class NotificationService {
    * @returns Daftar notifikasi untuk user tertentu
    * @throws Error jika terjadi kesalahan selama proses pengambilan
    */
-  async getNotificationsByUserId(
+  async getNotifications(
     userId: string,
     page: number = 1,
     pageSize: number = 10
@@ -170,6 +170,46 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Berdasarkan user id
+   */
+
+  async getNotificationsByUserId(userId: string) {
+    try {
+      // Get notifications with pagination similar to getNotifications method
+      const [notifications, totalCount] = await prisma.$transaction([
+        prisma.notification.findMany({
+          where: {
+            userId: userId,
+            isDeleted: false
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }),
+        prisma.notification.count({
+          where: {
+            userId: userId,
+            isDeleted: false
+          }
+        })
+      ]);
+  
+      const pageSize = 10;
+      const totalPages = Math.ceil(totalCount / pageSize);
+  
+      return {
+        notifications,
+        totalCount,
+        totalPages,
+        currentPage: 1
+      };
+    } catch (error: any) {
+      console.error('Error in getNotificationsByUserId:', error);
+      throw new Error(`Failed to fetch notifications: ${error.message}`);
+    }
+  }
+  
   /**
    * Menandai notifikasi sebagai dibaca
    * @param notificationId ID dari notifikasi yang ingin ditandai

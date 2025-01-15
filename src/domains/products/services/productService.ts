@@ -116,6 +116,7 @@ export class ProductService {
   
       return {
         data: products,
+        searchTerm,
         meta: {
           total,
           page,
