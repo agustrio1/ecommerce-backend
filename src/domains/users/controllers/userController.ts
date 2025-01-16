@@ -14,6 +14,8 @@ export class UserController {
     this.updateUser = this.updateUser.bind(this);
     this.deleteUser = this.deleteUser.bind(this);
     this.getUserStats = this.getUserStats.bind(this);
+    this.updateEmailNotificationPreference = this.updateEmailNotificationPreference.bind(this);
+    console.log("[UserController] UserService initialized:", this.userService);
   }
 
   /**
@@ -65,18 +67,30 @@ export class UserController {
 
   public async updateEmailNotificationPreference(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
+      const { id } = req.params;
       const { isEnabled } = req.body;
-      const user = await this.userService.updateEmailNotificationPreference(userId, isEnabled);
-      res.status(200).json({ user });
-    } catch (error: any) {
-      if (error.message === "User not found") {
-        return res.status(404).json({ error: error.message });
+
+      if (typeof isEnabled !== "boolean") {
+        return res.status(400).json({
+          error: "isEnabled must be a boolean value",
+        });
       }
-      return res.status(500).json({ error: "Gagal memperbarui preferensi notifikasi email" });
+
+      const user = await this.userService.updateEmailNotificationPreference(id, isEnabled);
+
+      return res.status(200).json({
+        success: true,
+        message: `Email notifications ${isEnabled ? "enabled" : "disabled"} successfully`,
+        user,
+      });
+    } catch (error: any) {
+      console.error("[updateEmailNotificationPreference] Error:", error);
+      return res.status(500).json({
+        error: "Failed to update email notification preference",
+        details: error.message,
+      });
     }
   }
-
   /**
    * Memperbarui data pengguna
    * @param id

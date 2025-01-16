@@ -158,19 +158,69 @@ export class DiscountService {
     }
   }
 
-  /**
-   * get by code
+ /**
+   * Memvalidasi dan mendapatkan diskon berdasarkan kode dengan total order.
+   *
+   * @param {string} code - Kode diskon yang dicari
+   * @param {number} totalOrder - Total nilai pesanan
+   * @returns {Promise<Discount>} Diskon yang valid
+   * @throws {Error} Jika diskon tidak valid atau tidak memenuhi syarat
    */
+ async getDiscountByCode(code: string, totalOrder: number): Promise<Discount> {
+  try {
 
-  async getDiscountByCode(code: string): Promise<Discount> {
-    try {
-      const discount: any = await prisma.discount.findUnique({ where: { code } });
-      return discount;
-    } catch (error: any) {
-      this.handlePrismaError(error);
+    const discount = await prisma.discount.findFirst({
+      where: { code: { equals: code, mode: "insensitive" } },
+    });
+
+    if (!discount) {
+      throw new Error(`Diskon dengan kode "${code}" tidak ditemukan.`);
     }
-  }
 
+
+    if (discount.expiresAt && new Date(discount.expiresAt) < new Date()) {
+      throw new Error("Kode diskon sudah kedaluwarsa.");
+    }
+
+    if (discount.maxUsage && discount.usageCount >= discount.maxUsage) {
+      throw new Error("Kode diskon sudah mencapai batas penggunaan maksimal.");
+    }
+
+    if (discount.minPurchase && totalOrder < discount.minPurchase) {
+      throw new Error(
+        `Total pembelian minimum untuk menggunakan diskon ini adalah ${discount.minPurchase.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}`
+      );
+    }
+
+    if (discount.discountType === DiscountType.FIXED && discount.value > totalOrder) {
+      throw new Error("Nilai diskon melebihi total pembelian.");
+    }
+
+    // Kalkulasi nilai diskon aktual
+    let actualDiscountValue: number;
+    if (discount.discountType === DiscountType.PERCENTAGE) {
+      actualDiscountValue = (totalOrder * discount.value) / 100;
+      // Terapkan maxDiscount jika ada
+      if (discount.maxDiscount && actualDiscountValue > discount.maxDiscount) {
+        actualDiscountValue = discount.maxDiscount;
+      }
+    } else {
+      actualDiscountValue = discount.value;
+    }
+
+    // Validasi final nilai diskon
+    if (actualDiscountValue > totalOrder) {
+      throw new Error("Nilai diskon melebihi total pembelian.");
+    }
+
+    return {
+      ...discount,
+      value: actualDiscountValue // Return nilai diskon yang sudah dikalkulasi
+    };
+  } catch (error: any) {
+    this.handlePrismaError(error);
+  }
+}
   /**
    * Menangani dan melempar pesan error Prisma yang sesuai.
    *

@@ -57,21 +57,36 @@ export class UserService {
    * @param userId - User ID
    * @param isEnabled - Boolean to enable or disable email notifications
    */
-  async updateEmailNotificationPreference(userId: string, isEnabled: boolean) {
+  async updateEmailNotificationPreference(id: string, isEnabled: boolean) {
     try {
+      // Cek apakah user exists sebelum update
+      const existingUser = await prisma.user.findUnique({
+        where: { id }
+      });
+
+      if (!existingUser) {
+        throw new Error("User not found");
+      }
+
       const user = await prisma.user.update({
-        where: { id: userId },
+        where: { id },
         data: {
-          isEmailNotificationEnabled: isEnabled,
-        },
+          isEmailNotificationEnabled: isEnabled
+        }
       });
 
       return user;
     } catch (error: any) {
+      console.error("Service - Error:", error);
+      
+      if (error.code === "P2025") {
+        throw new Error("User not found");
+      }
+
       throw new Error(`Failed to update email notification preference: ${error.message}`);
     }
   }
-
+  
   /**
    * Update User
    * @param id

@@ -88,18 +88,35 @@ export class DiscountController {
     }
   }
 
-  // Get Discount by Code
-  async getDiscountByCode(req: Request, res: Response) {
+  /**
+   * Get Discount by Code with validation
+   */
+  async getDiscountByCode(req: Request, res: Response): Promise<Response> {
     const { code } = req.params;
+    const { totalOrder } = req.query;
+  
+    // Validasi input
+    if (!code || typeof code !== "string") {
+      return res.status(400).json({ error: "Kode diskon harus disertakan." });
+    }
+
+    if (!totalOrder || isNaN(Number(totalOrder))) {
+      return res.status(400).json({ error: "Total order harus disertakan dan berupa angka." });
+    }
 
     try {
-      const discount = await this.discountService.getDiscountByCode(code);
+      const discount = await this.discountService.getDiscountByCode(
+        code, 
+        Number(totalOrder)
+      );
+  
       return res.status(200).json(discount);
     } catch (error: any) {
       if (error instanceof ApiError) {
         return res.status(error.statusCode).json({ error: error.message });
       }
-      return res.status(500).json({ error: error.message });
+  
+      return res.status(400).json({ error: error.message });
     }
   }
 
