@@ -58,10 +58,21 @@ export class ShippingController {
    */
   async getAllShipments(req: Request, res: Response): Promise<Response> {
     try {
-      const shipments = await shippingService.getAllShipments();
+      const { page = 1, limit = 10 } = req.query;
+
+      const pageNumber = parseInt(page as string, 10);
+      const limitNumber = parseInt(limit as string, 10);
+
+      const { shipments, total } = await shippingService.getAllShipments(pageNumber, limitNumber);
+
       return res.status(200).json({
         message: "Daftar pengiriman berhasil diambil",
         data: shipments,
+        meta: {
+          total,
+          page: pageNumber,
+          limit: limitNumber,
+        },
       });
     } catch (error: any) {
       return res.status(500).json({
@@ -69,6 +80,7 @@ export class ShippingController {
       });
     }
   }
+
 
   /**
    * Mendapatkan detail pengiriman berdasarkan ID.

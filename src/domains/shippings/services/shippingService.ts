@@ -163,12 +163,31 @@ export class ShippingService {
     }
   }
 
-  async getAllShipments(): Promise<Shipment[]> {
+  async getAllShipments(page: number = 1, limit: number = 10): Promise<{ shipments: Shipment[], total: number }> {
     try {
+      const skip = (page - 1) * limit;
+  
+      const total = await prisma.shipment.count();
+  
       const shipments = await prisma.shipment.findMany({
+        skip,
+        take: limit,
         include: {
           order: {
             select: {
+              id: true,
+              total: true,
+              orderItems: {
+                select: {
+                  product: {
+                    select: {
+                      name: true,
+                      price: true,
+                    },
+                  },
+                  quantity: true,
+                },
+              },
               user: {
                 select: {
                   name: true,
@@ -181,18 +200,25 @@ export class ShippingService {
           shipmentHistory: true,
         },
       });
-
-      return shipments.map((shipment) => ({
+  
+      // Format hasil sesuai kebutuhan
+      const formattedShipments = shipments.map((shipment) => ({
         ...shipment,
         originCity: this.KEDIRI_NAME,
         destinationCity:
           shipment.order?.address?.city || shipment.destinationCity,
       }));
+  
+      return {
+        shipments: formattedShipments,
+        total, // Total data untuk digunakan pada pagination di frontend
+      };
     } catch (error: any) {
       console.error("Error fetching all shipments:", error.message);
       throw new Error("Gagal mendapatkan daftar pengiriman.");
     }
   }
+  
 
   async getShipmentById(id: string): Promise<Shipment | null> {
     try {
