@@ -183,6 +183,12 @@ export class ShippingService {
                     select: {
                       name: true,
                       price: true,
+                      images: {
+                        select: {
+                          image: true,
+                        },
+                        take: 1,
+                      }
                     },
                   },
                   quantity: true,
