@@ -23,12 +23,24 @@ import {CORS_ORIGIN} from "./config/env";
 
 const app = express();
 
-app.use(cors(
-  {
-    origin: [`${CORS_ORIGIN}`, "https://shop.trioagus.cloud/"],
-    credentials: true
-  }
-));
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+    const allowedOrigins = [process.env.CORS_ORIGIN, 'https://shop.trioagus.cloud'];
+    
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
@@ -39,10 +51,13 @@ app.set('trust proxy', true);
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Ensure "public/images" directory exists
-const imagesDir = path.join(__dirname, "..", "public", "images");
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
-}
+const publicDirs = ['images', 'categories', 'products'];
+publicDirs.forEach(dir => {
+  const fullPath = path.join(process.cwd(), 'public', dir);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Hello World!");

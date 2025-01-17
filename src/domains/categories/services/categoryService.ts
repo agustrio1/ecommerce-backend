@@ -61,6 +61,11 @@ export class CategoryService {
   ): Promise<any> {
     const slug = slugify(name, { lower: true });
     try {
+      const uploadDir = path.join(process.cwd(), "public", "categories");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
       const category = await prisma.category.create({
         data: {
           name,
@@ -71,16 +76,12 @@ export class CategoryService {
       return category;
     } catch (error: any) {
       if (image && image.filename) {
-        const imgPath = path.join(
-          __dirname,
-          "../../../../public/categories",
-          image.filename
-        );
+        const imgPath = path.join(process.cwd(), "public", "categories", image.filename);
         if (fs.existsSync(imgPath)) {
           fs.unlinkSync(imgPath);
         }
       }
-      console.error(error);
+      console.error("Create category error:", error);
       throw new Error(error.message);
     }
   }
@@ -100,7 +101,6 @@ export class CategoryService {
     const slug = slugify(name, { lower: true });
     try {
       return await prisma.$transaction(async (prisma) => {
-        // Cek apakah kategori ada
         const existingCategory = await prisma.category.findUnique({
           where: { id },
         });
@@ -109,20 +109,13 @@ export class CategoryService {
           throw new Error("Category not found");
         }
 
-        // Jika ada gambar baru yang diupload dan kategori memiliki gambar lama
         if (image && existingCategory.image) {
-          // Hapus gambar lama dari server
-          const oldImgPath = path.join(
-            __dirname,
-            "../../../../public/categories",
-            existingCategory.image
-          );
+          const oldImgPath = path.join(process.cwd(), "public", "categories", existingCategory.image);
           if (fs.existsSync(oldImgPath)) {
             fs.unlinkSync(oldImgPath);
           }
         }
 
-        // Update kategori dengan gambar baru jika ada
         const category = await prisma.category.update({
           where: { id },
           data: {
@@ -135,13 +128,8 @@ export class CategoryService {
         return category;
       });
     } catch (error: any) {
-      // Jika terjadi error, hapus file gambar yang sudah diupload (jika ada)
       if (image && image.filename) {
-        const imgPath = path.join(
-          __dirname,
-          "../../../../public/categories",
-          image.filename
-        );
+        const imgPath = path.join(process.cwd(), "public", "categories", image.filename);
         if (fs.existsSync(imgPath)) {
           fs.unlinkSync(imgPath);
         }
