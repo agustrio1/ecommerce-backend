@@ -7,6 +7,7 @@ const shippingController = new ShippingController()
 
 ShippingRouter.post("/", authMiddleware, shippingController.createShipment)
 ShippingRouter.put("/:id", authMiddleware, shippingController.updateShipment)
+ShippingRouter.get("/user/:userId", authMiddleware, shippingController.getShipmentsByUserId)
 ShippingRouter.get("/:id", authMiddleware, shippingController.getShipmentById)
 ShippingRouter.get("/", authMiddleware, shippingController.getAllShipments)
 ShippingRouter.delete("/:id", authMiddleware, shippingController.deleteShipment)

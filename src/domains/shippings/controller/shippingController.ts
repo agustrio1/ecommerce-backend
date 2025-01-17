@@ -81,6 +81,38 @@ export class ShippingController {
     }
   }
 
+  /**
+ * Mendapatkan daftar pengiriman berdasarkan ID pengguna.
+ *
+ * @param {Request} req - Request dari client, berisi ID pengguna sebagai parameter.
+ * @param {Response} res - Response untuk dikirimkan kembali ke client.
+ */
+async getShipmentsByUserId(req: Request, res: Response): Promise<Response> {
+  try {
+    const userId = req.params.userId;
+    const { page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page as string, 10);
+    const limitNumber = parseInt(limit as string, 10);
+
+    const { shipments, total } = await shippingService.getShipmentsByUserId(userId, pageNumber, limitNumber);
+
+    return res.status(200).json({
+      message: "Daftar pengiriman berdasarkan pengguna berhasil diambil",
+      data: shipments,
+      meta: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+}
+
 
   /**
    * Mendapatkan detail pengiriman berdasarkan ID.

@@ -146,16 +146,26 @@ export class ShippingService {
 
   async updateShipment(shipmentData: UpdateShipmentDTO): Promise<Shipment> {
     try {
+      const updateData: any = {};
+      
+      if (shipmentData.status) {
+        updateData.status = shipmentData.status;
+      }
+      if (shipmentData.trackingNumber !== undefined) {
+        updateData.trackingNumber = shipmentData.trackingNumber;
+      }
+      if (shipmentData.shippedAt) {
+        updateData.shippedAt = new Date(shipmentData.shippedAt);
+      }
+      if (shipmentData.deliveredAt) {
+        updateData.deliveredAt = new Date(shipmentData.deliveredAt);
+      }
+  
       const updatedShipment = await prisma.shipment.update({
         where: { id: shipmentData.id },
-        data: {
-          status: shipmentData.status,
-          trackingNumber: shipmentData.trackingNumber,
-          shippedAt: shipmentData.shippedAt,
-          deliveredAt: shipmentData.deliveredAt,
-        } as any,
+        data: updateData,
       });
-
+  
       return updatedShipment;
     } catch (error: any) {
       console.error("Error during shipment update:", error.message);
@@ -217,7 +227,7 @@ export class ShippingService {
   
       return {
         shipments: formattedShipments,
-        total, // Total data untuk digunakan pada pagination di frontend
+        total, 
       };
     } catch (error: any) {
       console.error("Error fetching all shipments:", error.message);
@@ -225,7 +235,78 @@ export class ShippingService {
     }
   }
   
-
+  async getShipmentsByUserId(userId: string, page: number = 1, limit: number = 10): Promise<{ shipments: Shipment[], total: number }> {
+    try {
+      const skip = (page - 1) * limit;
+  
+      const total = await prisma.shipment.count({
+        where: {
+          order: {
+            userId: userId,
+          },
+        },
+      });
+  
+      const shipments = await prisma.shipment.findMany({
+        where: {
+          order: {
+            userId: userId,
+          },
+        },
+        skip,
+        take: limit,
+        include: {
+          order: {
+            select: {
+              id: true,
+              total: true,
+              orderItems: {
+                select: {
+                  product: {
+                    select: {
+                      name: true,
+                      price: true,
+                      images: {
+                        select: {
+                          image: true,
+                        },
+                        take: 1,
+                      },
+                    },
+                  },
+                  quantity: true,
+                },
+              },
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              address: true,
+            },
+          },
+          shipmentHistory: true,
+        },
+      });
+  
+      const formattedShipments = shipments.map((shipment) => ({
+        ...shipment,
+        originCity: this.KEDIRI_NAME,
+        destinationCity:
+          shipment.order?.address?.city || shipment.destinationCity,
+      }));
+  
+      return {
+        shipments: formattedShipments,
+        total,
+      };
+    } catch (error: any) {
+      console.error("Error fetching shipments by user ID:", error.message);
+      throw new Error("Gagal mendapatkan daftar pengiriman untuk pengguna.");
+    }
+  }
+  
   async getShipmentById(id: string): Promise<Shipment | null> {
     try {
       const shipment = await prisma.shipment.findUnique({
