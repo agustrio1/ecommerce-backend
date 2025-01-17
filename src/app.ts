@@ -32,6 +32,7 @@ app.use(cors(
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+app.set('trust proxy', true); 
 
 
 // Serve static files from "public" directory

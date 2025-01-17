@@ -21,15 +21,16 @@ export class CategoryController {
   public getAllCategories = async (req: Request, res: Response) => {
     try {
       const categories = await this.categoryService.getAllCategories();
-      const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
+      const protocol = req.protocol === "https" ? "https" : "http";
+      const baseUrl = `${protocol}://${req.get("host")}/categories/`;
 
-      const transformedCategories = categories.map(category => ({
+      const transformedCategories = categories.map((category) => ({
         id: category.id,
         name: category.name,
         slug: category.slug,
         image: category.image ? baseUrl + category.image : null,
         createdAt: category.createdAt,
-        updatedAt: category.updatedAt
+        updatedAt: category.updatedAt,
       }));
 
       res.status(200).json(transformedCategories);
@@ -45,20 +46,21 @@ export class CategoryController {
     try {
       const { id } = req.params;
       const category = await this.categoryService.getCategoryById(id);
-      
+
       if (!category) {
         return res.status(404).json({ error: "Kategori tidak ditemukan" });
       }
 
-      const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
-      
+      const protocol = req.protocol === "https" ? "https" : "http";
+      const baseUrl = `${protocol}://${req.get("host")}/categories/`;
+
       const transformedCategory = {
         id: category.id,
         name: category.name,
         slug: category.slug,
         image: category.image ? baseUrl + category.image : null,
         createdAt: category.createdAt,
-        updatedAt: category.updatedAt
+        updatedAt: category.updatedAt,
       };
 
       res.status(200).json(transformedCategory);
@@ -74,20 +76,21 @@ export class CategoryController {
     try {
       const { slug } = req.params;
       const category = await this.categoryService.getCategoryBySlug(slug);
-      
+
       if (!category) {
         return res.status(404).json({ error: "Kategori tidak ditemukan" });
       }
 
-      const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
-      
+      const protocol = req.protocol === "https" ? "https" : "http";
+      const baseUrl = `${protocol}://${req.get("host")}/categories/`;
+
       const transformedCategory = {
         id: category.id,
         name: category.name,
         slug: category.slug,
         image: category.image ? baseUrl + category.image : null,
         createdAt: category.createdAt,
-        updatedAt: category.updatedAt
+        updatedAt: category.updatedAt,
       };
 
       res.status(200).json(transformedCategory);
@@ -112,22 +115,25 @@ export class CategoryController {
         }
 
         const category = await this.categoryService.createCategory(name, file);
-        
-        const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
+
+        const protocol = req.protocol === "https" ? "https" : "http";
+        const baseUrl = `${protocol}://${req.get("host")}/categories/`;
+
         const transformedCategory = {
           id: category.id,
           name: category.name,
           slug: category.slug,
           image: category.image ? baseUrl + category.image : null,
           createdAt: category.createdAt,
-          updatedAt: category.updatedAt
+          updatedAt: category.updatedAt,
         };
 
         res.status(201).json(transformedCategory);
       } catch (error: any) {
+        console.log(error);
         return res.status(500).json({ error: "Gagal membuat kategori" });
       }
-    }
+    },
   ];
 
   /**
@@ -142,9 +148,7 @@ export class CategoryController {
         const file = req.file;
 
         if (!name) {
-          return res
-            .status(400)
-            .json({ error: "Nama kategori harus diisi" });
+          return res.status(400).json({ error: "Nama kategori harus diisi" });
         }
 
         const errors = this.validateInput(categoryValidator.update, { name });
@@ -152,27 +156,33 @@ export class CategoryController {
           return res.status(400).json({ errors });
         }
 
-        const category = await this.categoryService.updateCategory(id, name, file);
-        
+        const category = await this.categoryService.updateCategory(
+          id,
+          name,
+          file
+        );
+
         if (!category) {
           return res.status(404).json({ error: "Kategori tidak ditemukan" });
         }
 
-        const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
+        const protocol = req.protocol === "https" ? "https" : "http";
+        const baseUrl = `${protocol}://${req.get("host")}/categories/`;
+
         const transformedCategory = {
           id: category.id,
           name: category.name,
           slug: category.slug,
           image: category.image ? baseUrl + category.image : null,
           createdAt: category.createdAt,
-          updatedAt: category.updatedAt
+          updatedAt: category.updatedAt,
         };
 
         res.status(200).json(transformedCategory);
       } catch (error: any) {
         return res.status(500).json({ error: "Gagal memperbarui kategori" });
       }
-    }
+    },
   ];
 
   /**
@@ -182,19 +192,21 @@ export class CategoryController {
     try {
       const { id } = req.params;
       const category = await this.categoryService.deleteCategory(id);
-      
+
       if (!category) {
         return res.status(404).json({ error: "Kategori tidak ditemukan" });
       }
 
-      const baseUrl = `${req.protocol}://${req.get("host")}/categories/`;
+      const protocol = req.protocol === "https" ? "https" : "http";
+      const baseUrl = `${protocol}://${req.get("host")}/categories/`;
+
       const transformedCategory = {
         id: category.id,
         name: category.name,
         slug: category.slug,
         image: category.image ? baseUrl + category.image : null,
         createdAt: category.createdAt,
-        updatedAt: category.updatedAt
+        updatedAt: category.updatedAt,
       };
 
       res.status(200).json(transformedCategory);

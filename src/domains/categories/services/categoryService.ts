@@ -70,7 +70,6 @@ export class CategoryService {
       });
       return category;
     } catch (error: any) {
-      // Jika terjadi error, hapus file gambar yang sudah diupload (jika ada)
       if (image && image.filename) {
         const imgPath = path.join(
           __dirname,
@@ -81,6 +80,7 @@ export class CategoryService {
           fs.unlinkSync(imgPath);
         }
       }
+      console.error(error);
       throw new Error(error.message);
     }
   }
