@@ -25,12 +25,14 @@ const app = express();
 
 app.use(cors(
   {
-    origin: [`${CORS_ORIGIN}`, "http://localhost:3000"],
+    origin: [`${CORS_ORIGIN}`, "https://shop.trioagus.cloud/"],
     credentials: true
   }
 ));
 app.use(express.json());
 app.use(cookieParser());
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
 
 // Serve static files from "public" directory
 app.use(express.static(path.join(__dirname, "..", "public")));
