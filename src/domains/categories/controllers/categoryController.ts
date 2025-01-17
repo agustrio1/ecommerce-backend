@@ -103,7 +103,7 @@ export class CategoryController {
    * Membuat kategori baru
    */
   public createCategory = [
-    upload.single("image"),
+    upload.single("images"),
     async (req: Request, res: Response) => {
       try {
         const { name } = req.body;
@@ -130,17 +130,21 @@ export class CategoryController {
 
         res.status(201).json(transformedCategory);
       } catch (error: any) {
-        console.log(error);
-        return res.status(500).json({ error: "Gagal membuat kategori" });
+        console.error("Create category error:", error);
+        return res.status(500).json({ 
+          error: "Gagal membuat kategori", 
+          details: error.message 
+        });
       }
     },
   ];
+
 
   /**
    * Memperbarui kategori
    */
   public updateCategory = [
-    upload.single("image"),
+    upload.single("images"),
     async (req: Request, res: Response) => {
       try {
         const { id } = req.params;
