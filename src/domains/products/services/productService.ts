@@ -6,6 +6,19 @@ import slugify from "slugify";
 import { contains } from "validate.js";
 
 export class ProductService {
+
+  private getUploadPath() {
+    // Use environment variable for upload path
+    const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'public', 'images');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    return uploadDir;
+  }
+
   /**
    * Membuat produk baru beserta gambar-gambarnya
    * @param productData Data produk
@@ -17,10 +30,25 @@ export class ProductService {
     images: Express.Multer.File[],
     tags?: string[]
   ): Promise<any> {
+    const uploadPath = this.getUploadPath();
+
     try {
       const slug = slugify(productData.name, { lower: true });
 
       return await prisma.$transaction(async (prisma) => {
+        // Validate images
+        if (!images || images.length === 0) {
+          throw new Error("At least one image is required");
+        }
+
+        // Ensure all images exist
+        for (const file of images) {
+          const filePath = path.join(uploadPath, file.filename);
+          if (!fs.existsSync(filePath)) {
+            throw new Error(`Image file ${file.filename} not found`);
+          }
+        }
+
         const product = await prisma.product.create({
           data: {
             name: productData.name,
@@ -57,8 +85,16 @@ export class ProductService {
         return product;
       });
     } catch (error: any) {
-      console.error("Error creating product: ", error.message);
-      throw new Error("Gagal membuat produk: " + error.message);
+      // Delete uploaded images in case of error
+      for (const file of images) {
+        const filePath = path.join(uploadPath, file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      console.error("Error creating product: ", error);
+      throw new Error(`Failed to create product: ${error.message}`);
     }
   }
 
@@ -298,49 +334,53 @@ export class ProductService {
     images?: Express.Multer.File[],
     tags?: string[]
   ): Promise<any | null> {
+    const uploadPath = this.getUploadPath();
+
     try {
       return await prisma.$transaction(async (prisma) => {
-        // Cek apakah produk ada
         const existingProduct = await prisma.product.findUnique({
           where: { id },
           include: { images: true },
         });
+
         if (!existingProduct) {
           throw new Error("Product not found");
         }
 
-        // Jika ada gambar baru yang diupload
-        if (images && images.length > 0) {
-          // Hapus gambar lama dari server
+        if (images?.length) {
+          // Delete old images
           for (const img of existingProduct.images) {
-            const imgPath = path.join(
-              __dirname,
-              "../../../../public/images",
-              img.image
-            );
+            const imgPath = path.join(uploadPath, img.image);
             if (fs.existsSync(imgPath)) {
-              fs.unlinkSync(imgPath);
+              try {
+                fs.unlinkSync(imgPath);
+              } catch (err) {
+                console.error(`Failed to delete image ${img.image}:`, err);
+              }
             }
           }
 
-          // Hapus gambar lama dari database
-          await prisma.productImage.deleteMany({ where: { productId: id } });
+          // Delete old image records
+          await prisma.productImage.deleteMany({ 
+            where: { productId: id } 
+          });
 
-          // Tambahkan gambar baru
+          // Create new image records
           await prisma.productImage.createMany({
             data: images.map((file, index) => ({
               productId: id,
               image: file.filename,
-              isPrimary: index === 0 ? true : false,
+              isPrimary: index === 0,
             })),
           });
         }
 
-        // Perbarui data produk dan tags
+        // Update product data
         const updatedProduct = await prisma.product.update({
           where: { id },
           data: {
             name: productData.name,
+            slug: productData.name ? slugify(productData.name, { lower: true }) : undefined,
             description: productData.description,
             weight: productData.weight,
             price: productData.price,
@@ -366,7 +406,17 @@ export class ProductService {
         return updatedProduct;
       });
     } catch (error: any) {
-      throw new Error(error.message);
+      // If there are new images and an error occurs, delete them
+      if (images?.length) {
+        for (const file of images) {
+          const filePath = path.join(uploadPath, file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      }
+      
+      throw new Error(`Failed to update product: ${error.message}`);
     }
   }
 

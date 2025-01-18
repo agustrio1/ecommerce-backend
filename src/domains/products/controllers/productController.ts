@@ -6,8 +6,14 @@ import slugify from "slugify";
 
 export class ProductController {
   private productService: ProductService;
-
-  constructor() {
+  private getBaseUrl(req: Request): string {
+    // Use environment variable for production URL
+    if (process.env.NODE_ENV === 'production') {
+      return `${process.env.API_URL}/images/`;
+    }
+    // For development
+    return `${req.protocol}://${req.get('host')}/images/`;
+  }  constructor() {
     this.productService = new ProductService();
   }
 
@@ -20,52 +26,34 @@ export class ProductController {
       const limit = parseInt(req.query.limit as string) || 10;
       const searchTerm = (req.query.search as string) || '';
   
-      // Panggil service dengan pagination dan searchTerm
       const result = await this.productService.getAllProducts(page, limit, searchTerm);
+      const baseUrl = this.getBaseUrl(req);
   
-      // Base URL untuk gambar
-      const baseUrl = `${req.protocol}://${req.get('host')}/images/`;
-  
-      // Transformasi data produk
       const transformedProducts = result.data.map((product: any) => ({
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        price: product.price,
-        description: product.description,
-        weight: product.weight,
-        stock: product.stock,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
+        ...product,
         images: product.images.map((img: any) => ({
-          id: img.id,
-          productId: img.productId,
+          ...img,
           image: baseUrl + img.image,
-          isPrimary: img.isPrimary,
-          createdAt: img.createdAt,
-          updatedAt: img.updatedAt,
-        })),
-        category: product.category.name,
-        tags: product.tags.map((tag: any) => ({
-          productId: tag.productId,
-          name: tag.name,
         })),
       }));
   
-      // Response dengan pagination metadata
       res.status(200).json({
-        code: 200,
         status: 'success',
-        message: 'Produk berhasil diambil',
+        message: 'Products retrieved successfully',
         data: transformedProducts,
         meta: result.meta,
         searchTerm: result.searchTerm,
       });
     } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: 'Gagal mengambil produk' });
+      console.error('Error getting products:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to retrieve products',
+        error: error.message
+      });
     }
   };
+
   
 
   /**
@@ -80,7 +68,7 @@ export class ProductController {
         return res.status(404).json({ error: "Produk tidak ditemukan" });
       }
 
-      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+      const baseUrl = this.getBaseUrl(req);
 
       const transformedProduct = {
         id: product.id,
@@ -123,7 +111,7 @@ export class ProductController {
         return res.status(404).json({ error: "Produk tidak ditemukan" });
       }
   
-      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+      const baseUrl = this.getBaseUrl(req);
   
       const transformedProduct = {
         id: product.id,
@@ -169,7 +157,7 @@ export class ProductController {
         return res.status(404).json({ error: "Produk dengan kategori tersebut tidak ditemukan" });
       }
   
-      const baseUrl = `${req.protocol}://${req.get("host")}/images/`;
+      const baseUrl = this.getBaseUrl(req);
   
       const transformedProducts = products.map((product: any) => ({
         id: product.id,
@@ -225,41 +213,64 @@ export class ProductController {
     upload.array("images", 5),
     async (req: Request, res: Response) => {
       try {
-        const { name, description, weight, price, stock, categoryId, tags } = req.body;
         const files = req.files as Express.Multer.File[];
-  
         if (!files || files.length === 0) {
-          return res.status(400).json({ error: "Minimal satu gambar diperlukan" });
+          return res.status(400).json({
+            status: 'error',
+            message: 'At least one image is required'
+          });
         }
-  
-        // Pisahkan `tags` jika diterima sebagai string
-        const tagsArray = Array.isArray(tags)
-          ? tags
-          : tags
-          ? tags.split(",").map((tag: any) => tag.trim())
-          : undefined;
-  
+
+        const { name, description, weight, price, stock, categoryId, tags } = req.body;
+        
+        if (!name || !description || !price || !categoryId) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Missing required fields'
+          });
+        }
+
+        const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
+
         const productData: ProductType = {
           name,
-          slug: slugify(name, { lower: true }),
           description,
           price: parseFloat(price),
           weight: parseFloat(weight),
           stock: parseInt(stock),
           categoryId,
         } as any;
-  
+
         const product = await this.productService.createProduct(
           productData,
           files,
-          tagsArray // Mengirim tags sebagai array
+          tagsArray
         );
-        res.status(201).json(product);
+
+        // Transform response with correct image URLs
+        const baseUrl = this.getBaseUrl(req);
+        const transformedProduct = {
+          ...product,
+          images: product.images.map((img: any) => ({
+            ...img,
+            image: baseUrl + img.image,
+          })),
+        };
+
+        res.status(201).json({
+          status: 'success',
+          message: 'Product created successfully',
+          data: transformedProduct
+        });
       } catch (error: any) {
-        console.error("Error in createProduct controller: ", error.message);
-        res.status(500).json({ error: error.message || "Gagal membuat produk" });
+        console.error('Error creating product:', error);
+        res.status(500).json({
+          status: 'error',
+          message: 'Failed to create product',
+          error: error.message
+        });
       }
-    },
+    }
   ];
   
 
@@ -271,9 +282,9 @@ export class ProductController {
     async (req: Request, res: Response) => {
       try {
         const { id } = req.params;
-        const { name, description, weight, price, stock, categoryId, tags } = req.body;
         const files = req.files as Express.Multer.File[];
-  
+        const { name, description, weight, price, stock, categoryId, tags } = req.body;
+
         const productData: Partial<ProductType> = {
           name,
           description,
@@ -282,31 +293,41 @@ export class ProductController {
           stock: stock ? parseInt(stock) : undefined,
           categoryId,
         };
-  
-        const tagsArray = Array.isArray(tags)
-        ? tags
-        : tags
-        ? tags.split(",").map((tag: any) => tag.trim())
-        : undefined;
-      
-  
+
+        const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
+
         const product = await this.productService.updateProduct(
           id,
           productData,
-          files,
+          files.length > 0 ? files : undefined,
           tagsArray
         );
-        res.status(200).json(product);
+
+        // Transform response with correct image URLs
+        const baseUrl = this.getBaseUrl(req);
+        const transformedProduct = {
+          ...product,
+          images: product.images.map((img: any) => ({
+            ...img,
+            image: baseUrl + img.image,
+          })),
+        };
+
+        res.status(200).json({
+          status: 'success',
+          message: 'Product updated successfully',
+          data: transformedProduct
+        });
       } catch (error: any) {
-        console.error(error);
-        if (error.message === "Product not found") {
-          return res.status(404).json({ error: error.message });
-        }
-        res.status(500).json({ error: "Gagal memperbarui produk" });
+        console.error('Error updating product:', error);
+        res.status(500).json({
+          status: 'error',
+          message: 'Failed to update product',
+          error: error.message
+        });
       }
-    },
+    }
   ];
-  
 
   /**
    * Menghapus produk
