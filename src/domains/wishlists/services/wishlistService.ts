@@ -106,6 +106,7 @@ export class WishlistService {
           product: {
             select: {
               name: true,
+              slug: true,
               images: {
                 select: {
                   image: true,
