@@ -17,6 +17,26 @@ export class ProductController {
     this.productService = new ProductService();
   }
 
+  private handleError(res: Response, error: any) {
+    console.error('Operation error:', error);
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'File too large. Maximum size is 100MB'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Too many files. Maximum is 5 files'
+      });
+    }
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Internal server error'
+    });
+  }
+
   /**
    * Mendapatkan semua produk
    */
@@ -209,126 +229,135 @@ export class ProductController {
   /**
    * Membuat produk baru
    */
-  public createProduct = [
-    upload.array("images", 5),
-    async (req: Request, res: Response) => {
-      try {
-        const files = req.files as Express.Multer.File[];
-        if (!files || files.length === 0) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'At least one image is required'
-          });
+  public createProduct = async (req: Request, res: Response) => {
+    try {
+      // Handle the upload first
+      upload.array('images', 5)(req, res, async (err) => {
+        if (err) {
+          return this.handleError(res, err);
         }
 
-        const { name, description, weight, price, stock, categoryId, tags } = req.body;
-        
-        if (!name || !description || !price || !categoryId) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'Missing required fields'
+        try {
+          const files = req.files as Express.Multer.File[];
+          if (!files || files.length === 0) {
+            return res.status(400).json({
+              status: 'error',
+              message: 'At least one image is required'
+            });
+          }
+
+          const { name, description, price, weight, stock, categoryId, tags } = req.body;
+
+          // Validate required fields
+          if (!name || !description || !price || !categoryId) {
+            return res.status(400).json({
+              status: 'error',
+              message: 'Missing required fields'
+            });
+          }
+
+          // Process tags
+          const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
+
+          const productData: ProductType = {
+            name,
+            description,
+            price: parseFloat(price),
+            weight: weight ? parseFloat(weight) : 0,
+            stock: stock ? parseInt(stock) : 0,
+            categoryId,
+          } as any;
+
+          const product = await this.productService.createProduct(
+            productData,
+            files,
+            tagsArray
+          );
+
+          // Transform response
+          const baseUrl = process.env.API_URL ? 
+            `${process.env.API_URL}/images/` :
+            `${req.protocol}://${req.get('host')}/images/`;
+
+          const transformedProduct = {
+            ...product,
+            images: product.images.map((img: any) => ({
+              ...img,
+              image: baseUrl + img.image,
+            })),
+          };
+
+          res.status(201).json({
+            status: 'success',
+            message: 'Product created successfully',
+            data: transformedProduct
           });
+        } catch (error) {
+          this.handleError(res, error);
+        }
+      });
+    } catch (error) {
+      this.handleError(res, error);
+    }
+  };
+
+  public updateProduct = async (req: Request, res: Response) => {
+    try {
+      // Handle the upload first
+      upload.array('images', 5)(req, res, async (err) => {
+        if (err) {
+          return this.handleError(res, err);
         }
 
-        const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
+        try {
+          const { id } = req.params;
+          const files = req.files as Express.Multer.File[];
+          const { name, description, price, weight, stock, categoryId, tags } = req.body;
 
-        const productData: ProductType = {
-          name,
-          description,
-          price: parseFloat(price),
-          weight: parseFloat(weight),
-          stock: parseInt(stock),
-          categoryId,
-        } as any;
+          const productData: Partial<ProductType> = {
+            name,
+            description,
+            weight: weight ? parseFloat(weight) : undefined,
+            price: price ? parseFloat(price) : undefined,
+            stock: stock ? parseInt(stock) : undefined,
+            categoryId,
+          };
 
-        const product = await this.productService.createProduct(
-          productData,
-          files,
-          tagsArray
-        );
+          const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
 
-        // Transform response with correct image URLs
-        const baseUrl = this.getBaseUrl(req);
-        const transformedProduct = {
-          ...product,
-          images: product.images.map((img: any) => ({
-            ...img,
-            image: baseUrl + img.image,
-          })),
-        };
+          const product = await this.productService.updateProduct(
+            id,
+            productData,
+            files.length > 0 ? files : undefined,
+            tagsArray
+          );
 
-        res.status(201).json({
-          status: 'success',
-          message: 'Product created successfully',
-          data: transformedProduct
-        });
-      } catch (error: any) {
-        console.error('Error creating product:', error);
-        res.status(500).json({
-          status: 'error',
-          message: 'Failed to create product',
-          error: error.message
-        });
-      }
+          // Transform response
+          const baseUrl = process.env.API_URL ? 
+            `${process.env.API_URL}/images/` :
+            `${req.protocol}://${req.get('host')}/images/`;
+
+          const transformedProduct = {
+            ...product,
+            images: product.images.map((img: any) => ({
+              ...img,
+              image: baseUrl + img.image,
+            })),
+          };
+
+          res.status(200).json({
+            status: 'success',
+            message: 'Product updated successfully',
+            data: transformedProduct
+          });
+        } catch (error) {
+          this.handleError(res, error);
+        }
+      });
+    } catch (error) {
+      this.handleError(res, error);
     }
-  ];
-  
-
-  /**
-   * Memperbarui produk
-   */
-  public updateProduct = [
-    upload.array("images", 5),
-    async (req: Request, res: Response) => {
-      try {
-        const { id } = req.params;
-        const files = req.files as Express.Multer.File[];
-        const { name, description, weight, price, stock, categoryId, tags } = req.body;
-
-        const productData: Partial<ProductType> = {
-          name,
-          description,
-          weight: weight ? parseFloat(weight) : undefined,
-          price: price ? parseFloat(price) : undefined,
-          stock: stock ? parseInt(stock) : undefined,
-          categoryId,
-        };
-
-        const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map((tag: string) => tag.trim())) : undefined;
-
-        const product = await this.productService.updateProduct(
-          id,
-          productData,
-          files.length > 0 ? files : undefined,
-          tagsArray
-        );
-
-        // Transform response with correct image URLs
-        const baseUrl = this.getBaseUrl(req);
-        const transformedProduct = {
-          ...product,
-          images: product.images.map((img: any) => ({
-            ...img,
-            image: baseUrl + img.image,
-          })),
-        };
-
-        res.status(200).json({
-          status: 'success',
-          message: 'Product updated successfully',
-          data: transformedProduct
-        });
-      } catch (error: any) {
-        console.error('Error updating product:', error);
-        res.status(500).json({
-          status: 'error',
-          message: 'Failed to update product',
-          error: error.message
-        });
-      }
-    }
-  ];
-
+  };
   /**
    * Menghapus produk
    */
