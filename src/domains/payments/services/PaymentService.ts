@@ -188,7 +188,7 @@ export class PaymentService {
         // Tandai pesanan sebagai "PAID" jika pembayaran berhasil
         const orderUpdate = await prisma.order.update({
           where: { id: orderId },
-          data: { status: "PAID" },
+          data: { status:  PaymentStatus.SUCCESS },
         });
 
         if (!orderUpdate) {
