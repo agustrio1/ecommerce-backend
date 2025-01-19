@@ -144,62 +144,64 @@ export class PaymentService {
    * @throws {Error} Jika terjadi kesalahan dalam proses penanganan callback.
    */
   async handleCallback(notification: any): Promise<{ success: boolean }> {
-    try {
-      // Meminta detail status dari Midtrans berdasarkan notifikasi
-      const statusResponse = await this.snap.transaction.notification(notification);
-      const { order_id: orderId, transaction_status: transactionStatus, fraud_status: fraudStatus } = statusResponse;
+  try {
+    const statusResponse = await this.snap.transaction.notification(notification);
+    const { order_id: orderId, transaction_status: transactionStatus, fraud_status: fraudStatus } = statusResponse;
 
-      let paymentStatus: PaymentStatus;
+    let paymentStatus: PaymentStatus;
 
-      // Menentukan status pembayaran berdasarkan transaksi dan fraud status
-      switch (transactionStatus) {
-        case "capture":
-          paymentStatus = fraudStatus === "challenge" ? PaymentStatus.CHALLENGE : PaymentStatus.SUCCESS;
-          break;
-        case "settlement":
-          paymentStatus = PaymentStatus.SUCCESS;
-          break;
-        case "cancel":
-          paymentStatus = PaymentStatus.CANCELED;
-          break;
-        case "deny":
-        case "expire":
-          paymentStatus = PaymentStatus.FAILED;
-          break;
-        case "pending":
-          paymentStatus = PaymentStatus.PENDING;
-          break;
-        default:
-          paymentStatus = PaymentStatus.PENDING;
-          break;
-      }
+    switch (transactionStatus) {
+      case "capture":
+        paymentStatus = fraudStatus === "challenge" ? PaymentStatus.CHALLENGE : PaymentStatus.SUCCESS;
+        break;
+      case "settlement":
+        paymentStatus = PaymentStatus.SUCCESS;
+        break;
+      case "cancel":
+        paymentStatus = PaymentStatus.CANCELED;
+        break;
+      case "deny":
+      case "expire":
+        paymentStatus = PaymentStatus.FAILED;
+        break;
+      case "pending":
+        paymentStatus = PaymentStatus.PENDING;
+        break;
+      default:
+        paymentStatus = PaymentStatus.PENDING;
+        break;
+    }
 
-      // Perbarui status pembayaran di database
-      const paymentUpdate = await prisma.payment.update({
+    // Cari payment berdasarkan orderId terlebih dahulu
+    const payment = await prisma.payment.findFirst({
+      where: { orderId: orderId }
+    });
+
+    if (!payment) {
+      throw new Error(`Payment with order ID ${orderId} not found in database.`);
+    }
+
+    // Update payment menggunakan payment.id yang ditemukan
+    const paymentUpdate = await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: paymentStatus },
+    });
+
+    if (paymentStatus === PaymentStatus.SUCCESS) {
+      const orderUpdate = await prisma.order.update({
         where: { id: orderId },
-        data: { status: paymentStatus },
+        data: { status: PaymentStatus.SUCCESS },
       });
 
-      if (!paymentUpdate) {
-        throw new Error(`Payment with ID ${orderId} not found in database.`);
+      if (!orderUpdate) {
+        throw new Error(`Order with ID ${orderId} not found in database.`);
       }
-
-      if (paymentStatus === PaymentStatus.SUCCESS) {
-        // Tandai pesanan sebagai "PAID" jika pembayaran berhasil
-        const orderUpdate = await prisma.order.update({
-          where: { id: orderId },
-          data: { status:  PaymentStatus.SUCCESS },
-        });
-
-        if (!orderUpdate) {
-          throw new Error(`Order with ID ${orderId} not found in database.`);
-        }
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error in handleCallback:", error);
-      throw new Error(`Gagal menangani callback pembayaran: ${error.message}`);
     }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in handleCallback:", error);
+    throw new Error(`Gagal menangani callback pembayaran: ${error.message}`);
   }
+}
 }
