@@ -39,12 +39,17 @@ export class PaymentController {
     }
   }
 
-  async handleMidtransCallback(req: Request, res: Response) {
+  async handleMidtransCallback(req: Request, res: Response): Promise<void> {
     try {
+      // Tangani callback melalui service
       await this.paymentService.handleCallback(req.body);
+
+      // Berikan respons sukses ke Midtrans
       res.status(200).json({ status: "ok" });
     } catch (error: any) {
       console.error("Error in handleMidtransCallback:", error);
+
+      // Pastikan Midtrans tetap menerima respons meskipun ada error
       res.status(500).json({
         message: "Failed to process payment callback",
         error: error.message,

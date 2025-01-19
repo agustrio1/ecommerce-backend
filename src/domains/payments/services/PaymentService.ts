@@ -109,6 +109,9 @@ export class PaymentService {
           country_code: "IDN",
         },
         credit_card: { secure: true },
+        callbacks: {
+          finish: `${process.env.CLIENT_URL}/transaction-result`
+        }
       };
 
       const transaction = await this.snap.createTransaction(transactionDetails);
@@ -142,12 +145,13 @@ export class PaymentService {
    */
   async handleCallback(notification: any): Promise<{ success: boolean }> {
     try {
+      // Meminta detail status dari Midtrans berdasarkan notifikasi
       const statusResponse = await this.snap.transaction.notification(notification);
       const { order_id: orderId, transaction_status: transactionStatus, fraud_status: fraudStatus } = statusResponse;
 
       let paymentStatus: PaymentStatus;
 
-      // Menentukan status pembayaran berdasarkan transaksi
+      // Menentukan status pembayaran berdasarkan transaksi dan fraud status
       switch (transactionStatus) {
         case "capture":
           paymentStatus = fraudStatus === "challenge" ? PaymentStatus.CHALLENGE : PaymentStatus.SUCCESS;
@@ -156,6 +160,8 @@ export class PaymentService {
           paymentStatus = PaymentStatus.SUCCESS;
           break;
         case "cancel":
+          paymentStatus = PaymentStatus.CANCELED;
+          break;
         case "deny":
         case "expire":
           paymentStatus = PaymentStatus.FAILED;
@@ -169,17 +175,25 @@ export class PaymentService {
       }
 
       // Perbarui status pembayaran di database
-      await prisma.payment.update({
+      const paymentUpdate = await prisma.payment.update({
         where: { id: orderId },
         data: { status: paymentStatus },
       });
 
+      if (!paymentUpdate) {
+        throw new Error(`Payment with ID ${orderId} not found in database.`);
+      }
+
       if (paymentStatus === PaymentStatus.SUCCESS) {
         // Tandai pesanan sebagai "PAID" jika pembayaran berhasil
-        await prisma.order.update({
+        const orderUpdate = await prisma.order.update({
           where: { id: orderId },
-          data: { status: "PAID" as any },
+          data: { status: "PAID" },
         });
+
+        if (!orderUpdate) {
+          throw new Error(`Order with ID ${orderId} not found in database.`);
+        }
       }
 
       return { success: true };
