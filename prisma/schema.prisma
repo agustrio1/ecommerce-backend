@@ -89,6 +89,7 @@ model Cart {
 
 model Order {
   id         String        @id @default(cuid())
+  order_id   String?  @unique
   userId     String
   addressId  String
   total      Float

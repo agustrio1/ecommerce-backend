@@ -1,6 +1,7 @@
 import { prisma } from "../../../config/database";
 import { CreateOrderDTO, OrderType, UpdateOrderDTO } from "../types/orderType";
 import { Order } from "@prisma/client";
+import crypto from "crypto";
 
 interface PaginatedResult<T> {
   data: T[];
@@ -11,6 +12,12 @@ interface PaginatedResult<T> {
     totalPages: number;
   };
 }
+
+export const generateOrderId = (createdAt: Date): string => {
+  const hash = crypto.createHash("sha256").update(createdAt.toISOString()).digest("hex");
+  return `ORDER-${hash.slice(0, 8)}`;
+};
+
 
 export class OrderService {
   /**
@@ -104,6 +111,7 @@ export class OrderService {
         // Buat order baru
         const createdOrder = await prisma.order.create({
           data: {
+            order_id: generateOrderId(new Date()),
             userId: orderData.userId,
             addressId: orderData.addressId,
             total: finalTotal,
@@ -176,7 +184,7 @@ export class OrderService {
       const skip = (page - 1) * limit;
       const [total, orders] = await prisma.$transaction([
         prisma.order.count(),
-
+  
         prisma.order.findMany({
           skip,
           take: limit,
@@ -223,9 +231,9 @@ export class OrderService {
           },
         }),
       ]);
-
+  
       const totalPages = Math.ceil(total / limit);
-
+  
       return {
         data: orders,
         meta: {
@@ -239,6 +247,7 @@ export class OrderService {
       throw new Error(error.message);
     }
   }
+  
 
   /**
    * Mendapatkan order berdasarkan ID.

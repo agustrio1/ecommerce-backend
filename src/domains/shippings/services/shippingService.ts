@@ -186,6 +186,7 @@ export class ShippingService {
           order: {
             select: {
               id: true,
+              order_id: true,
               total: true,
               orderItems: {
                 select: {
@@ -259,6 +260,7 @@ export class ShippingService {
           order: {
             select: {
               id: true,
+              order_id: true,
               total: true,
               orderItems: {
                 select: {
@@ -287,6 +289,9 @@ export class ShippingService {
             },
           },
           shipmentHistory: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       });
   
